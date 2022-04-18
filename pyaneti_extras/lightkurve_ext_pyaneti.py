@@ -71,9 +71,20 @@ class Fraction:
         self.value = value
 
 
+notebook_location = dict()
+
 def init_notebook_js_utils():
     """Define Javascript helper functions used in a notebook UI."""
-    from IPython.display import display, HTML
+    from IPython.display import display, HTML, Javascript
+
+    # Get the URL of the running notebook to construct URLs for modeling files later
+    display(Javascript("""
+IPython.notebook.kernel.execute(`lkep.notebook_location["href"] = "${window.location.href}"`);
+IPython.notebook.kernel.execute(`lkep.notebook_location["origin"] = "${window.location.origin}"`);
+IPython.notebook.kernel.execute(`lkep.notebook_location["pathname"] = "${window.location.pathname}"`);
+// basedir of the URL, i.e., without the .ipynb filename
+IPython.notebook.kernel.execute(`lkep.notebook_location["pathdir"] = "${window.location.pathname.replace(/[/][^/]+$/, '')}"`);
+    """))
 
     display(
         HTML(
@@ -101,13 +112,28 @@ async function copyTextToClipboard(text) {
     )
 
 
-def html_a_of_file(file_url, a_text):
+def html_a_of_file(file_url, a_text, target="_blank"):
     """Create an HTML `<a>` link for the given file url.
-    When users click the `<a>` link , the URL will be copied to the clipboard.
-    This is done because for security reasons, modern browsers do not let users open file urls
-    from http/https pages (includes typical Jupyter notebook URLs).
+    It will create a link that make sense within a Jupyter notebook context.
     """
-    return f"""<a href="{file_url}" onclick="copyTextToClipboard(this.href); return false;" target="_blank">{a_text}</a>"""
+    # TODO: only works for relative url for now
+    base_dir = notebook_location["pathdir"]
+    if re.search(r"[.](py|dat)$", str(file_url)) is not None:
+        # For .py files:
+        # - use /edit link to have syntax highlighting, plus
+        #   it lets user edit generated `input_fit.py`
+        # For .dat files:
+        # - use /edit link as it's the only one that let you view them in-place
+        #   (/view link does not work: no content is shown)
+        base_dir = re.sub(r"^[/]notebooks[/]", "/edit/", base_dir)
+    elif re.search(r"[.]ipynb$", str(file_url)) is not None:
+        # no-op for .ipynb
+        pass
+    else:
+        base_dir = re.sub(r"^[/]notebooks[/]", "/view/", base_dir)
+
+    file_url_to_show = base_dir + f"/{file_url}"
+    return f"""<a href="{file_url_to_show}" target="{target}">{a_text}</a>"""
 
 
 #
@@ -856,7 +882,7 @@ def display_pyaneti_input_py_location(input_fit_filepath):
     display(
         HTML(
             f"""
-    {html_a_of_file(input_fit_filepath, input_fit_filepath)}
+    {html_a_of_file(input_fit_filepath, input_fit_filepath, "_input_fit")}
     """
         )
     )
@@ -868,10 +894,9 @@ def display_pyaneti_instructions(pti_env):
     display(
         Markdown(
             f"""
-Run `Pyaneti` to do the modeling:
+To do the modeling, copy the following to the next cell and run it:
 ```
-cd {pti_env.home_dir}
-python pyaneti.py  {pti_env.alias}
+!cd {pti_env.home_dir}; python pyaneti.py  {pti_env.alias}
 ```
     """
         )
@@ -924,14 +949,12 @@ def display_model(
 
     if show_params:
         file_params = Path(target_out_dir, f"{alias}_params.dat")
-        url_params = file_params.as_uri()
         file_init = Path(target_out_dir, f"{alias}_init.dat")
-        url_init = file_init.as_uri()
         display(
             HTML(
                 f"""<ul>
-    <li>{html_a_of_file(url_params, "Model params")}: {file_params}</li>
-    <li>{html_a_of_file(url_init, "Init params")}: {file_init}</li>
+    <li>{html_a_of_file(file_params, "Model params", target="_params")}: {file_params}</li>
+    <li>{html_a_of_file(file_init, "Init params", target="_init")}: {file_init}</li>
 </ul>
 """
             )
