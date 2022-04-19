@@ -1002,6 +1002,42 @@ To do the modeling, just run next cell. Or run the following in a separate termi
     )
 
 
+def beep():
+    """Emits a beep sound. It works only in IPython / Jupyter environment only"""
+    # a beep to remind the users that the data has been downloaded
+    # css tweak to hide beep
+    import IPython
+    from IPython.display import display, HTML, Audio
+
+    display(
+        HTML(
+            """<script>
+function tweakCSS() {
+  if (document.getElementById("hide-beep-css")) {
+      return;
+  }
+  document.head.insertAdjacentHTML('beforeend', `<style id="hide-beep-css" type="text/css">
+  #beep { /* hide the audio control for the beep, generated from tplt.beep() */
+    width: 1px;
+    height: 1px;
+  }
+</style>`);
+}
+tweakCSS();
+</script>
+"""
+        )
+    )
+    # the actual beep
+    ## source: https://upload.wikimedia.org/wikipedia/commons/f/fb/NEC_PC-9801VX_ITF_beep_sound.ogg
+    beep_url = "beep_sound.ogg"
+    if int(re.sub(r"[.].+", "", IPython.__version__)) < 7:
+        # compatibility with older older IPython (e.g., google colab)
+        audio = Audio(filename=beep_url, autoplay=True, embed=True)
+    else:
+        audio = Audio(filename=beep_url, autoplay=True, embed=True, element_id="beep")
+    display(audio)
+
 #
 # Read Pyaneti model output, lightcurve files, etc.
 #
