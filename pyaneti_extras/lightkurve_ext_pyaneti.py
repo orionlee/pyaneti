@@ -939,7 +939,7 @@ def create_input_fit(
 
     # Now all parameters are assembled in `mapping``, create the actual `input_fit.py`
     #
-    result = Path("pyaneti_templates", "input_1planet.py").read_text()
+    result = Path("templates", "template_input_tr_fit.py").read_text()
     for key, value in mapping.items():
         value_str = str(value)
         if isinstance(value, np.ndarray) and value.ndim >= 1:
