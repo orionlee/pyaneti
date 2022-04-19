@@ -985,9 +985,9 @@ def display_pyaneti_instructions(pti_env):
     display(
         Markdown(
             f"""
-To do the modeling, copy the following to the next cell and run it:
+To do the modeling, just run next cell. Or run the following in a separate terminal:
 ```
-!cd {pti_env.home_dir}; python pyaneti.py  {pti_env.alias}
+!cd {pti_env.home_dir.resolve()}; python pyaneti.py  {pti_env.alias}
 ```
     """
         )
