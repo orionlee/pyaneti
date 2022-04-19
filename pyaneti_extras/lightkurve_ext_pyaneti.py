@@ -10,6 +10,7 @@ from os import path
 from pathlib import Path
 import re
 import shutil
+import sys
 import warnings
 
 # memoization would not introduce additional dependency
@@ -26,6 +27,21 @@ import lightkurve as lk
 import logging
 
 logger = logging.getLogger(__name__)
+log_stdout_handler = logging.StreamHandler(stream=sys.stdout)
+
+def log_to_stdout_at_level(level):
+    """Set the module logger to the given level, and make it prints to `stdout`.
+        (In Jupyter notebook, info level logging is not printed as there is no handler)
+    """
+    # ensure we add the handler only once, even if the function
+    # is called multiple times, to avoid repeated logging.
+    # We set an attribute to the logger instance as the state, because in the event
+    # the module is reloaded, the logger will not be reloaded, so the state
+    # needs to be associated with the logger instance itself.
+    if not getattr(logger, "_stdout_handler_added", False):
+        logger.addHandler(log_stdout_handler)
+        logger._stdout_handler_added = True
+    logger.setLevel(level)
 
 
 class PyanetiEnv:
