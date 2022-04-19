@@ -596,7 +596,8 @@ def estimate_planet_radius_in_r_star(r_star, depth):
     based on the simple model of a planet with circular orbit,
     transiting across the center of the host star (impact parameter `b` = 0)
     """
-    if r_star is None or r_star < 0 or depth is None or depth <= 0:
+    depth = np.asarray(depth)
+    if r_star is None or r_star < 0 or depth is None: # TODO: handle depth <= 0:
         return None  # cannot estimate
 
     R_JUPITER_IN_R_SUN = 71492 / 695700
@@ -606,10 +607,10 @@ def estimate_planet_radius_in_r_star(r_star, depth):
     r_planet_in_r_star = r_planet / r_star
 
     # Provide some rough min / max estimate
-    min_r_planet_in_r_star = 0
+    min_r_planet_in_r_star = np.zeros_like(depth)
     # a rough guess for max: 2 times of the above estimate, capped to the size of 2.5 R_jupiter
-    max_r_planet_in_r_star = 2.5 * R_JUPITER_IN_R_SUN / r_star
-    max_r_planet_in_r_star = min(r_planet_in_r_star * 2, max_r_planet_in_r_star)
+    max_r_planet_in_r_star = np.full_like(depth, 2.5 * R_JUPITER_IN_R_SUN / r_star)
+    max_r_planet_in_r_star = np.minimum(r_planet_in_r_star * 2, max_r_planet_in_r_star)
 
     # somehow the number in full precision causes pyaneti to behave strangely
     # (getting invalid numeric number in calculation, results in `nan` in `T_full`, etc.
@@ -621,9 +622,12 @@ def estimate_planet_radius_in_r_star(r_star, depth):
     )
 
 
-def estimate_orbital_distance_in_r_star(tic_meta):
+def estimate_orbital_distance_in_r_star(tic_meta, transit_specs):
     # TODO: possibly use Kepler third law for better constraints
-    return dict(min_a=2.0, max_a=99.0)
+    return dict(
+        min_a=np.full(np.shape(transit_specs), 2.0),
+        max_a=np.full(np.shape(transit_specs), 99.0)
+        )
 
 
 def define_impact_parameter():
@@ -660,7 +664,7 @@ class ModelTemplate:
     _ORBIT_TYPES_ABBREV2 = {"circular": "c", "eccentric": "e"}
 
     def __init__(self, num_planets, orbit_type, fit_type) -> None:
-        self._validate_and_set(num_planets, [1], "num_planets")  # support 1 planet for now
+        self._validate_and_set(num_planets, np.arange(1, 20), "num_planets")
         self._validate_and_set(orbit_type, self.ORBIT_TYPES, "orbit_type")
         self._validate_and_set(fit_type, self.FIT_TYPES, "fit_type")
 
@@ -679,7 +683,10 @@ class ModelTemplate:
     def default_alias(self, tic) -> str:
         orbit_abbrev2 = self._ORBIT_TYPES_ABBREV2[self.orbit_type]
         fit_abbrev = self._FIT_TYPES_ABBREV[self.fit_type]
-        return f"TIC{tic}_{orbit_abbrev2}_{fit_abbrev}"
+        res = f"TIC{tic}_{orbit_abbrev2}_{fit_abbrev}"
+        if self.num_planets > 1:
+            res += f"_{self.num_planets}planets"
+        return res
 
     @staticmethod
     def _validate(val, allowed_values, val_name):
@@ -713,18 +720,24 @@ def create_input_fit(
             return False
 
     def repeat(val, repeat_n):
-        if repeat_n <= 1:
+        if repeat_n is None or repeat_n < 1:
+            # use case: `val` is already a list
+            return val
+        elif repeat_n == 1:
             return [val]
         else:
             return [val] * repeat_n
 
-    def process_priors(map, key_prior, src, key_prior_src=None, fraction_base_func=None, repeat_n=None):
+    def process_priors(map, key_prior, src, key_prior_src=None, fraction_base_func=None, repeat_n=1):
 
-        if repeat_n is None or repeat_n < 1:
-            repeat_n = 1
+        def do_repeat(val, repeat_n_to_use=repeat_n):
+            return repeat(val, repeat_n_to_use)
 
-        def do_repeat(val):
-            return repeat(val, repeat_n)
+        def get_len(val):
+            if isinstance(val, Iterable):
+                return len(val)
+            else:
+                return 1
 
         if key_prior_src is None:
             key_prior_src = key_prior
@@ -741,14 +754,16 @@ def create_input_fit(
         key_prior_val2 = f"val2_{key_prior}"
         if src.get(key_prior_src) is not None and src.get(key_prior_src_error) is not None:
             logger.info(f"Prior {key_prior}: resolved to Gaussian")
-            map[key_prior_type] = do_repeat("g")  # Gaussian Prior
             map[key_prior_val1] = do_repeat(src.get(key_prior_src))  # Mean
             map[key_prior_val2] = do_repeat(src.get(key_prior_src_error))  # Standard Deviation
+            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_type] = do_repeat("g", num_to_repeat)  # Gaussian Prior
         elif src.get(key_prior_src_min) is not None and src.get(key_prior_src_max) is not None:
             logger.info(f"Prior {key_prior}: resolved to Uniform")
-            map[key_prior_type] = do_repeat("u")  # Uniform Prior
             map[key_prior_val1] = do_repeat(src.get(key_prior_src_min))  # Minimum
             map[key_prior_val2] = do_repeat(src.get(key_prior_src_max))  # Maximum
+            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_type] = do_repeat("u", num_to_repeat)  # Uniform Prior
         elif src.get(key_prior_src) is not None and src.get(key_prior_src_window) is not None:
             logger.info(f"Prior {key_prior}: resolved to Uniform (by mean and window)")
             window = src.get(key_prior_src_window)
@@ -756,17 +771,19 @@ def create_input_fit(
             # so that the codes would work even if users have reloaded the module after
             # fraction is defined initially in `transit_specs`.
             # if isinstance(window, Fraction):
-            if hasattr(window, "value"):  # i.e, a Fraction type
+            if hasattr(window[0], "value"):  # i.e, a Fraction type # OPEN: it does not work when `src` returns scalars
                 fraction_base = src.get(key_prior_src) if fraction_base_func is None else fraction_base_func(src)
-                window = fraction_base * window.value
-            map[key_prior_type] = do_repeat("u")  # Uniform Prior
+                window = fraction_base * np.asarray([i.value for i in window])
             map[key_prior_val1] = do_repeat(src.get(key_prior_src) - window / 2)  # Minimum
             map[key_prior_val2] = do_repeat(src.get(key_prior_src) + window / 2)  # Maximum
+            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_type] = do_repeat("u", num_to_repeat)  # Uniform Prior
         elif src.get(key_prior_src) is not None:
             logger.info(f"Prior {key_prior}: resolved to Fixed")
-            map[key_prior_type] = do_repeat("f")  # Fixed Prior
             map[key_prior_val1] = do_repeat(src.get(key_prior_src))  # Fixed value
             map[key_prior_val2] = do_repeat(src.get(key_prior_src))  # does not matter for fixed value
+            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_type] = do_repeat("f", num_to_repeat)  # Fixed Prior
         else:
             raise ValueError(f"Prior {key_prior} is not defined or only partly defined.")
 
@@ -786,21 +803,21 @@ def create_input_fit(
         else:
             raise ValueError(f"Unsupported orbit type: {template.orbit_type}")
 
-    def process_fit_type(map):
+    def process_fit_type(map, num_planets):
         if template.fit_type == "orbital_distance":
-            process_priors(map, "a", map)
+            process_priors(map, "a", map, repeat_n=None)
             map["comment_a"] = "a/R*"
             map["sample_stellar_density"] = False
             map["is_single_transit"] = False
         elif template.fit_type == "rho":
-            process_priors(map, "a", map, key_prior_src="rho")
+            process_priors(map, "a", map, key_prior_src="rho", repeat_n=num_planets)
             map["comment_a"] = "rho*"
             map["sample_stellar_density"] = True
             map["is_single_transit"] = False
         elif template.fit_type == "single_transit":
             # currently, single transit implies fitting orbital distance rather than rho;
             # as it is Pyaneti's actual behavior
-            process_priors(map, "a", map)
+            process_priors(map, "a", map, repeat_n=None)
             map["comment_a"] = "a/R*"
             map["sample_stellar_density"] = False
             map["is_single_transit"] = True
@@ -841,6 +858,39 @@ def create_input_fit(
 
         return num_bands
 
+    def add_dummy_rvs_params(map, num_planets):
+        """Add dummy RV fitting params.
+           They are necessary for multi-planet case, as Pyaneti cannot process the input file otherwise.
+           """
+        map["fit_rv"] = repeat(False, num_planets)
+        map["fit_k"] = repeat('f', num_planets)
+        map["min_k"] = repeat(0.0, num_planets)
+        map["max_k"] = repeat(1.0, num_planets)
+
+
+    def transit_specs_to_columns(transit_specs):
+        """Convert row-oriented free form transit_specs to a set of columns.
+           Use case: the set of columns is used by `process_priors`()`.
+        """
+        result = dict()
+
+        def add_to_result_if_exist(param_name):
+            spec0 = transit_specs[0]
+            if param_name in spec0:
+                values = np.asarray([i.get(param_name) for i in transit_specs])
+                result[param_name] = values
+                return True
+            return False
+
+        # Note: the implementation is not fully generic, but is sufficient for our use case here.
+        # TODO: handle other variation, such as min/max, error, etc.
+        # TODO: handle cases such that transit_specs[0] uses `window_epoch`, but transit_specs[1] uses `min_epoch` / `max_epoch`
+        for param_name in ["epoch", "window_epoch", "period", "window_period", "duration_hr"]:
+            add_to_result_if_exist(param_name)
+
+        return result
+
+
     # First process and combine all the given parameters
     # into a mapping table, which will be used to instantiate
     # the actual `input_fit.py`
@@ -856,13 +906,20 @@ def create_input_fit(
     mapping["alias"] = alias
     mapping["fname_tr"] = pti_env.lc_dat_filename
 
-    # TODO: handle multiple planets
-    process_orbit_type(mapping, 1)
-    process_priors(mapping, "epoch", transit_specs[0], fraction_base_func=lambda spec: spec["duration_hr"] / 24)
-    process_priors(mapping, "period", transit_specs[0])
-    process_priors(mapping, "b", mapping)
-    process_fit_type(mapping)
-    process_priors(mapping, "rp", mapping, "r_planet_in_r_star")
+    # Per-planet processing
+    num_planets = len(transit_specs)
+    mapping["nplanets"] = num_planets
+    mapping["fit_tr"] = repeat(True, repeat_n=num_planets)
+    add_dummy_rvs_params(mapping, num_planets)
+
+    process_orbit_type(mapping, num_planets=num_planets)
+    transit_spec_cols = transit_specs_to_columns(transit_specs)
+    process_priors(mapping, "epoch", transit_spec_cols, fraction_base_func=lambda specs: specs["duration_hr"] / 24, repeat_n=None)
+    process_priors(mapping, "period", transit_spec_cols, repeat_n=None)
+    process_priors(mapping, "b", mapping, repeat_n=num_planets)
+    process_fit_type(mapping, num_planets=num_planets)
+    process_priors(mapping, "rp", mapping, "r_planet_in_r_star", repeat_n=None)
+
     # Per-band / cadence type processing
     num_bands = process_cadence(mapping, lc_or_lc_by_band)
     process_priors(mapping, "q1", mapping, repeat_n=num_bands)
@@ -884,7 +941,14 @@ def create_input_fit(
     #
     result = Path("pyaneti_templates", "input_1planet.py").read_text()
     for key, value in mapping.items():
-        result = result.replace("{" + key + "}", str(value))
+        value_str = str(value)
+        if isinstance(value, np.ndarray) and value.ndim >= 1:
+            # str(ndarray) has no comma, we need to provide them to be proper python list
+            # do not use `np.array2string()`, because
+            # - its output  can be affected by various numpy printoptions settings
+            # - requires numpy > 1.11 (not as important)
+            value_str = '[' + ', '.join([str(v) for v in value]) + ']'
+        result = result.replace("{" + key + "}", value_str)
 
     if re.search(r"{[^}]+}", result):
         warnings.warn("create_input_fit(): the created `input_fit.py` still has values not yet defined.")
@@ -947,8 +1011,14 @@ def copy_input_fit_py_to_out_dir(pti_env):
     shutil.copyfile(input_fit_filepath, destination)
 
 
+def _char_list_inclusive(c1, c2):
+    """Return the list of characters from `c1` to `c2`, inclusive."""
+    return [chr(c) for c in range(ord(c1), ord(c2) + 1)]
+
+
 def display_model(
     pti_env,
+    template,
     show_params=True,
     show_posterior=True,
     show_correlations=False,
@@ -988,7 +1058,11 @@ def display_model(
     if show_correlations:
         display(Image(Path(target_out_dir, f"{alias}_correlations.png")))
     if show_transits:
-        display(Image(Path(target_out_dir, f"{alias}b_tr.png")))  # TODO: handle multiple planets
+        planets_suffix = _char_list_inclusive('b', 'z')
+        planets_suffix = planets_suffix[:template.num_planets]
+        for suffix in planets_suffix:
+            display(HTML(f"""<h5 style="text-align: center;">Planet {suffix}:</h5>"""))
+            display(Image(Path(target_out_dir, f"{alias}{suffix}_tr.png")))
     if show_lightcurve:
         display(Image(Path(target_out_dir, f"{alias}_lightcurve.png")))
     if show_chains:
