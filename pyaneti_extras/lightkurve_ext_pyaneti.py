@@ -667,6 +667,7 @@ class ModelTemplate:
         self._validate_and_set(num_planets, np.arange(1, 20), "num_planets")
         self._validate_and_set(orbit_type, self.ORBIT_TYPES, "orbit_type")
         self._validate_and_set(fit_type, self.FIT_TYPES, "fit_type")
+        self.template_filename = None  # i.e., uses the default
 
     def _validate_and_set(self, val, allowed_values, val_name):
         self._validate(val, allowed_values, val_name)
@@ -939,7 +940,10 @@ def create_input_fit(
 
     # Now all parameters are assembled in `mapping``, create the actual `input_fit.py`
     #
-    result = Path("templates", "template_input_tr_fit.py").read_text()
+    template_filename = "template_input_tr_fit.py"
+    if template.template_filename is not None:
+        template_filename = template.template_filename
+    result = Path("templates", template_filename).read_text()
     for key, value in mapping.items():
         value_str = str(value)
         if isinstance(value, np.ndarray) and value.ndim >= 1:
