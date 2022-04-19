@@ -665,11 +665,17 @@ class ModelTemplate:
     _ORBIT_TYPES_ABBREV = {"circular": "circular", "eccentric": "eccentric"}
     _ORBIT_TYPES_ABBREV2 = {"circular": "c", "eccentric": "e"}
 
-    def __init__(self, num_planets, orbit_type, fit_type) -> None:
+    def __init__(self, transit_specs, orbit_type, fit_type) -> None:
+        num_planets = len(transit_specs)
         self._validate_and_set(num_planets, np.arange(1, 20), "num_planets")
         self._validate_and_set(orbit_type, self.ORBIT_TYPES, "orbit_type")
         self._validate_and_set(fit_type, self.FIT_TYPES, "fit_type")
         self.template_filename = None  # i.e., uses the default
+
+        if self.num_planets > 1:
+            self.default_alias_suffix = f"{self.num_planets}planets"
+        else:
+            self.default_alias_suffix = transit_specs[0].get("label", None)
 
     def _validate_and_set(self, val, allowed_values, val_name):
         self._validate(val, allowed_values, val_name)
@@ -687,8 +693,8 @@ class ModelTemplate:
         orbit_abbrev2 = self._ORBIT_TYPES_ABBREV2[self.orbit_type]
         fit_abbrev = self._FIT_TYPES_ABBREV[self.fit_type]
         res = f"TIC{tic}_{orbit_abbrev2}_{fit_abbrev}"
-        if self.num_planets > 1:
-            res += f"_{self.num_planets}planets"
+        if self.default_alias_suffix:
+            res += f"_{self.default_alias_suffix}"
         return res
 
     @staticmethod
