@@ -133,15 +133,17 @@ async function copyTextToClipboard(text) {
     )
 
 
-def html_a_of_file(file_url, a_text, target="_blank"):
+def html_a_of_file(file_url, a_text, target="_blank", is_dir=False):
     """Create an HTML `<a>` link for the given file url.
     It will create a link that make sense within a Jupyter notebook context.
     """
     # needed if users have reloaded the module (and notebook_location object has been reset)
-    _init_notebook_location_if_needed()
+    _init_notebook_location_if_needed()  # TODO: the lazy re-init `notebook_location` does not really work
     # TODO: only works for relative url for now
     base_dir = notebook_location["pathdir"]
-    if re.search(r"[.](py|dat)$", str(file_url)) is not None:
+    if is_dir:
+        base_dir = re.sub(r"^[/]notebooks[/]", "/tree/", base_dir)
+    elif re.search(r"[.](py|dat)$", str(file_url)) is not None:
         # For .py files:
         # - use /edit link to have syntax highlighting, plus
         #   it lets user edit generated `input_fit.py`
@@ -1037,7 +1039,7 @@ def display_model(
     display(
         HTML(
             f"""
-<h3>Model for {alias}&nbsp;
+<h3>Model for {html_a_of_file(target_out_dir, alias, target="_out_dir", is_dir=True)}&nbsp;
 <a href="https://github.com/oscaribv/pyaneti/wiki/Output-files" target="_doc_pti_out"
    style="font-size: 75%; font-weight: normal;">(documentation)</a>
 </h3>"""
