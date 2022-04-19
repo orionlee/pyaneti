@@ -73,18 +73,23 @@ class Fraction:
 
 notebook_location = dict()
 
-def init_notebook_js_utils():
-    """Define Javascript helper functions used in a notebook UI."""
-    from IPython.display import display, HTML, Javascript
-
+def _init_notebook_location_if_needed(force=False):
+    from IPython.display import display, Javascript
     # Get the URL of the running notebook to construct URLs for modeling files later
-    display(Javascript("""
+    if force or len(notebook_location) < 1:
+        display(Javascript("""
 IPython.notebook.kernel.execute(`lkep.notebook_location["href"] = "${window.location.href}"`);
 IPython.notebook.kernel.execute(`lkep.notebook_location["origin"] = "${window.location.origin}"`);
 IPython.notebook.kernel.execute(`lkep.notebook_location["pathname"] = "${window.location.pathname}"`);
 // basedir of the URL, i.e., without the .ipynb filename
 IPython.notebook.kernel.execute(`lkep.notebook_location["pathdir"] = "${window.location.pathname.replace(/[/][^/]+$/, '')}"`);
-    """))
+"""))
+
+
+def init_notebook_js_utils():
+    """Define Javascript helper functions used in a notebook UI."""
+    from IPython.display import display, HTML
+    _init_notebook_location_if_needed(force=True)
 
     display(
         HTML(
@@ -116,6 +121,8 @@ def html_a_of_file(file_url, a_text, target="_blank"):
     """Create an HTML `<a>` link for the given file url.
     It will create a link that make sense within a Jupyter notebook context.
     """
+    # needed if users have reloaded the module (and notebook_location object has been reset)
+    _init_notebook_location_if_needed()
     # TODO: only works for relative url for now
     base_dir = notebook_location["pathdir"]
     if re.search(r"[.](py|dat)$", str(file_url)) is not None:
