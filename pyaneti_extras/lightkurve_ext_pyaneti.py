@@ -849,6 +849,7 @@ def create_input_fit(
 
     def process_fit_type(map, num_planets):
         if template.fit_type == "orbital_distance":
+            # TODO: validate the supplied `a` does have `num_planets` elements
             process_priors(map, "a", map, repeat_n=None)
             map["comment_a"] = "a/R*"
             map["sample_stellar_density"] = False
@@ -861,6 +862,7 @@ def create_input_fit(
         elif template.fit_type == "single_transit":
             # currently, single transit implies fitting orbital distance rather than rho;
             # as it is Pyaneti's actual behavior
+            # TODO: validate the supplied `a` does have `num_planets` elements
             process_priors(map, "a", map, repeat_n=None)
             map["comment_a"] = "a/R*"
             map["sample_stellar_density"] = False
@@ -920,11 +922,19 @@ def create_input_fit(
 
         def add_to_result_if_exist(param_name):
             spec0 = transit_specs[0]
-            if param_name in spec0:
-                values = np.asarray([i.get(param_name) for i in transit_specs])
+            values = np.asarray([i.get(param_name) for i in transit_specs])
+            values_are_none = (None == values)
+
+            if values_are_none.all():
+                # the param is not in transit specs
+                return False
+            elif values_are_none.any():
+                # the param is in some specs, but not all
+                warnings.warn(f"In transit_specs, parameter {param_name} does not exist for all entries. It is ignored in the mapping due to implementation limitation.")
+                return False
+            else:
                 result[param_name] = values
                 return True
-            return False
 
         # Note: the implementation is not fully generic, but is sufficient for our use case here.
         # TODO: handle cases such that transit_specs[0] uses `window_epoch`, but transit_specs[1] uses `min_epoch` / `max_epoch`
@@ -970,6 +980,7 @@ def create_input_fit(
         )
     process_priors(mapping, "b", mapping, repeat_n=num_planets)
     process_fit_type(mapping, num_planets=num_planets)
+    # TODO: validate the supplied `r_planet_in_r_star` does have `num_planets` elements
     process_priors(mapping, "rp", mapping, "r_planet_in_r_star", repeat_n=None)
 
     # Per-band / cadence type processing
