@@ -320,9 +320,8 @@ def _create_dir_if_needed(path):
         os.makedirs(basedir)
 
 
-def _truncate_lc_to_around_transits(lc, transit_specs):
-    if transit_specs is None:
-        return lc
+def create_transit_mask(lc, transit_specs, include_surround_time=False, default_surround_time_func=None):
+    """Create a mask for the transits specified in the `transit_spec` for the lightcurve."""
 
     def calc_duration_to_use(spec):
         """Calc a duration for the purpose of masking,
@@ -330,10 +329,13 @@ def _truncate_lc_to_around_transits(lc, transit_specs):
         with a default of (`max(transit duration * 2, 1 day)`
         """
         duration = spec["duration_hr"] / 24
-        surround_time = spec.get("surround_time", None)
-        if surround_time is None:
-            surround_time = max(duration * 3, 1)  # duration + 2 * duration
-        return surround_time
+        if include_surround_time:
+            surround_time = spec.get("surround_time", None)
+            if surround_time is None and default_surround_time_func is not None:
+                surround_time = default_surround_time_func(duration)
+            if surround_time is not None:
+                duration = duration + surround_time
+        return duration
 
     def calc_period_to_use(spec):
         period = spec.get("period", None)
@@ -342,15 +344,31 @@ def _truncate_lc_to_around_transits(lc, transit_specs):
         # else period is not really specified,
         # for the use case that a single dip is observed with noted
         # use an arbitrary large period as a filler
-        return 99999999
-
-    lc = lc.remove_nans().normalize()
+        return 9999999999
 
     period = [calc_period_to_use(t) for t in transit_specs]
     duration = [calc_duration_to_use(t) for t in transit_specs]
     transit_time = [t["epoch"] for t in transit_specs]
-    # a mask to include the transits and their surrounding (out of transit observations)
+
+    # a mask to include the transits,
+    # and optionally their surrounding (for out of transit observations)
     mask = lc.create_transit_mask(period=period, duration=duration, transit_time=transit_time)
+
+    return mask
+
+
+def _truncate_lc_to_around_transits(lc, transit_specs):
+    if transit_specs is None:
+        return lc
+
+    lc = lc.remove_nans().normalize()
+
+    # a mask to include the transits and their surrounding (out of transit observations)
+    mask = create_transit_mask(
+        lc, transit_specs,
+        include_surround_time=True,
+        default_surround_time_func=lambda duration: duration * 2
+        )
 
     return lc[mask]
 
