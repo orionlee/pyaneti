@@ -1,2 +1,2 @@
-lightkurve >=2.2.0
+lightkurve >=2.0
 notebook
