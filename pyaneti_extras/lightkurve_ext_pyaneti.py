@@ -755,7 +755,7 @@ def create_input_fit(
         else:
             return [val] * repeat_n
 
-    def process_priors(map, key_prior, src, key_prior_src=None, fraction_base_func=None, repeat_n=1):
+    def process_priors(map, key_prior, src, key_prior_src=None, fraction_base_func=None, repeat_n=1, default=None, repeat_default=None):
 
         def do_repeat(val, repeat_n_to_use=repeat_n):
             return repeat(val, repeat_n_to_use)
@@ -811,6 +811,14 @@ def create_input_fit(
             map[key_prior_val2] = do_repeat(src.get(key_prior_src))  # does not matter for fixed value
             num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
             map[key_prior_type] = do_repeat("f", num_to_repeat)  # Fixed Prior
+        elif default is not None:
+            prior_type = default[key_prior_type]
+            if prior_type is not None:
+                logger.info(f"Prior {key_prior}: not defined. Default is used. Type: '{prior_type}'")
+                for key, value in default.items():
+                    map[key] = repeat(value, repeat_default)
+            else:
+                raise AssertionError(f"Prior {key_prior} is not defined, but the supplied default is incomplete: {default}")
         else:
             raise ValueError(f"Prior {key_prior} is not defined or only partly defined.")
 
@@ -942,7 +950,12 @@ def create_input_fit(
     process_orbit_type(mapping, num_planets=num_planets)
     transit_spec_cols = transit_specs_to_columns(transit_specs)
     process_priors(mapping, "epoch", transit_spec_cols, fraction_base_func=lambda specs: specs["duration_hr"] / 24, repeat_n=None)
-    process_priors(mapping, "period", transit_spec_cols, repeat_n=None)
+    process_priors(mapping, "period", transit_spec_cols, repeat_n=None,
+        # if users do not specify period (single transit case), we give a large uniform prior
+        # note: for default, the keys refers to the ones in the template file, not transit specs
+        default=dict(type_period='u', val1_period=0.01, val2_period=9999),
+        repeat_default=len(transit_specs),
+        )
     process_priors(mapping, "b", mapping, repeat_n=num_planets)
     process_fit_type(mapping, num_planets=num_planets)
     process_priors(mapping, "rp", mapping, "r_planet_in_r_star", repeat_n=None)
