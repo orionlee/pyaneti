@@ -73,7 +73,13 @@ class PyanetiEnv:
     @property
     def lc_dat_filename(self):
         sector_str = to_sector_str(self.sector)
-        return f"{self.alias}_lc_s{sector_str}.dat"
+        if sector_str is not None:
+            return f"{self.alias}_lc_s{sector_str}.dat"
+        else:
+            # no sector is specified, i.e., all available ones
+            # OPEN: if we want to know the sectors, we'd need to change
+            # the API so that it it takes in the actual lc objects
+            return f"{self.alias}_lc.dat"
 
     @property
     def lc_dat_filepath(self):
@@ -254,7 +260,8 @@ def download_lightcurves_by_cadence_type(
     sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=["short, long"])
 
     # filter by sector and cadence
-    sr = sr[np.in1d(sr.table["sequence_number"], sector)]
+    if sector is not None:
+        sr = sr[np.in1d(sr.table["sequence_number"], sector)]
 
     lc_by_cadence_type = dict()
     if cadence == "short" or cadence == "short_long":
@@ -308,7 +315,9 @@ def to_sector_str(sector):
     def format(a_sector):
         return f"{a_sector:02d}"
 
-    if isinstance(sector, Iterable):
+    if sector is None:
+        return None
+    elif isinstance(sector, Iterable):
         return "_".join([format(i) for i in sector])
     else:
         return format(sector)
