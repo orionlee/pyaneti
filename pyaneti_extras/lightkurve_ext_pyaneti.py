@@ -245,31 +245,44 @@ def _stitch_lc_collection(lcc, warn_if_multiple_authors=True):
 
 
 def download_lightcurves_by_cadence_type(
-    tic, sector, cadence="short", author_priority=["SPOC", "TESS-SPOC", "QLP"], download_dir=None, return_sr=False
+    tic, sector, cadence=["short"], author_priority=["SPOC", "TESS-SPOC", "QLP"], download_dir=None, return_sr=False
 ):
     """Download the lightcurves of the given TIC - sector combination.
-    The downloaded lightcurves are partitioned by cadence type (long / short),
+    The downloaded lightcurves are partitioned by cadence type (long / short / fast),
     so they could be fed to `Pyaneti` separately (one band for each cadence type).
     """
+
+    # parameters pre=processing
+    if isinstance(cadence, str):  # support specifying single cadence as string
+        cadence = [cadence]
+
     # for not-yet-released query cache in https://github.com/lightkurve/lightkurve/pull/1039
     if hasattr(lk.search, "sr_cache"):
         lk.search.sr_cache.cache_dir = download_dir
 
     sr_all = lk.search_lightcurve(f"TIC{tic}", mission="TESS")
 
-    sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=["short", "long"])
+    exptime_priority = ["fast", "short", "long"]
+    # the subset users specified
+    exptime_priority = [v for v in exptime_priority if v in cadence]
+    sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=exptime_priority)
 
     # filter by sector and cadence
     if sector is not None:
         sr = sr[np.in1d(sr.table["sequence_number"], sector)]
 
     lc_by_cadence_type = dict()
-    if cadence == "short" or cadence == "short_long":
+    if "fast" in cadence:
+        lcc_fast = sr[sr.exptime == 20 * u.s].download_all(download_dir=download_dir)
+        lc_fast = _stitch_lc_collection(lcc_fast, warn_if_multiple_authors=True)
+        lc_by_cadence_type["FC"] = lc_fast
+
+    if "short" in cadence:
         lcc_short = sr[sr.exptime == 120 * u.s].download_all(download_dir=download_dir)
         lc_short = _stitch_lc_collection(lcc_short, warn_if_multiple_authors=True)
         lc_by_cadence_type["SC"] = lc_short
 
-    if cadence == "long" or cadence == "short_long":
+    if "long" in cadence:
         lcc_long = sr[sr.exptime == 1800 * u.s].download_all(download_dir=download_dir)
         lc_long = _stitch_lc_collection(lcc_long, warn_if_multiple_authors=True)
         lc_by_cadence_type["LC"] = lc_long
