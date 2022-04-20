@@ -927,9 +927,12 @@ def create_input_fit(
             return False
 
         # Note: the implementation is not fully generic, but is sufficient for our use case here.
-        # TODO: handle other variation, such as min/max, error, etc.
         # TODO: handle cases such that transit_specs[0] uses `window_epoch`, but transit_specs[1] uses `min_epoch` / `max_epoch`
-        for param_name in ["epoch", "window_epoch", "period", "window_period", "duration_hr"]:
+        for param_name in [
+            "epoch", "window_epoch", "min_epoch", "max_epoch", "e_epoch",
+            "period", "window_period", "min_period", "max_period", "e_period",
+            "duration_hr",
+            ]:
             add_to_result_if_exist(param_name)
 
         return result
