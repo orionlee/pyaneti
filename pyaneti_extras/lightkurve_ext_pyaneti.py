@@ -654,8 +654,11 @@ def estimate_planet_radius_in_r_star(r_star, depth):
 def estimate_orbital_distance_in_r_star(tic_meta, transit_specs):
     # TODO: possibly use Kepler third law for better constraints
     return dict(
-        min_a=np.full(np.shape(transit_specs), 2.0),
-        max_a=np.full(np.shape(transit_specs), 99.0)
+        # the arbitrary min/max is inspired by what Pyaneti chooses in a
+        # (somewhat)similar scenario
+        # https://github.com/oscaribv/pyaneti/blob/c6b6eb66854b8e079a7dbe8057df4cb809f10764/src/prepare_data.py#L243-L244
+        min_a=np.full(np.shape(transit_specs), 1.1),
+        max_a=np.full(np.shape(transit_specs), 1000.0)
         )
 
 
