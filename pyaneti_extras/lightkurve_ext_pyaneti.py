@@ -257,7 +257,7 @@ def download_lightcurves_by_cadence_type(
 
     sr_all = lk.search_lightcurve(f"TIC{tic}", mission="TESS")
 
-    sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=["short, long"])
+    sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=["short", "long"])
 
     # filter by sector and cadence
     if sector is not None:
