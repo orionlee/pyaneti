@@ -1136,9 +1136,8 @@ def save_params_as_txt_file(pti_env):
 
 def copy_input_fit_py_to_out_dir(pti_env):
     "Copy `input_fit.py` to output directory so that it can be easily shared (on Google Drive)."
-    input_fit_filepath = Path(pti_env.target_in_dir, "input_fit.py")
-    destination = Path(pti_env.target_out_dir, "input.py")
-    shutil.copyfile(input_fit_filepath, destination)
+    destination = Path(pti_env.target_out_dir, pti_env.input_fit_filename)
+    shutil.copyfile(pti_env.input_fit_filepath, destination)
 
 
 def _char_list_inclusive(c1, c2):
