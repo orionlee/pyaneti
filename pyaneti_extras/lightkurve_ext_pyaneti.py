@@ -1157,6 +1157,13 @@ def display_model(
 ):
     from IPython.display import display, Image, HTML
 
+    def _show_image(img_path):
+        if img_path.exists():
+            return display(Image(img_path))
+        else:
+            return display(HTML(f"[ Image <code>{img_path}</code> not found. ]"))
+
+
     target_out_dir = pti_env.target_out_dir
     alias = pti_env.alias
     display(
@@ -1183,19 +1190,19 @@ def display_model(
         )
 
     if show_posterior:
-        display(Image(Path(target_out_dir, f"{alias}_posterior.png")))
+        _show_image(Path(target_out_dir, f"{alias}_posterior.png"))
     if show_correlations:
-        display(Image(Path(target_out_dir, f"{alias}_correlations.png")))
+        _show_image(Path(target_out_dir, f"{alias}_correlations.png"))
     if show_transits:
         planets_suffix = _char_list_inclusive('b', 'z')
         planets_suffix = planets_suffix[:template.num_planets]
         for suffix in planets_suffix:
             display(HTML(f"""<h5 style="text-align: center;">Planet {suffix}:</h5>"""))
-            display(Image(Path(target_out_dir, f"{alias}{suffix}_tr.png")))
+            _show_image(Path(target_out_dir, f"{alias}{suffix}_tr.png"))
     if show_lightcurve:
-        display(Image(Path(target_out_dir, f"{alias}_lightcurve.png")))
+        _show_image(Path(target_out_dir, f"{alias}_lightcurve.png"))
     if show_chains:
-        display(Image(Path(target_out_dir, f"{alias}_chains.png")))
+        _show_image(Path(target_out_dir, f"{alias}_chains.png"))
 
 
 def read_pyaneti_lc_dat(filename, time_format="btjd", time_converter_func=None):
