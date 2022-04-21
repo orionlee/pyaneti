@@ -6,7 +6,6 @@
 from collections import OrderedDict
 from collections.abc import Iterable
 import os
-from os import path
 from pathlib import Path
 import re
 import shutil
@@ -25,6 +24,8 @@ import numpy as np
 import lightkurve as lk
 
 import logging
+
+__module_dir__ = Path(__file__).parent
 
 logger = logging.getLogger(__name__)
 log_stdout_handler = logging.StreamHandler(stream=sys.stdout)
@@ -599,7 +600,7 @@ def get_limb_darkening_params(tic_meta):
         warnings.warn("No Teff in metadata Proceeding with Teff=6000")
 
     ld = np.genfromtxt(
-        path.join("catalogs", "ld_claret_tess.csv"),
+        Path(__module_dir__, "catalogs", "ld_claret_tess.csv"),
         skip_header=1,
         delimiter=",",
         dtype="f8, int32, f8, f8",
@@ -1029,7 +1030,7 @@ def create_input_fit(
     template_filename = "template_input_tr_fit.py"
     if template.template_filename is not None:
         template_filename = template.template_filename
-    result = Path("templates", template_filename).read_text()
+    result = Path(__module_dir__, "templates", template_filename).read_text()
     for key, value in mapping.items():
         value_str = str(value)
         if isinstance(value, np.ndarray) and value.ndim >= 1:
@@ -1112,7 +1113,7 @@ tweakCSS();
     )
     # the actual beep
     ## source: https://upload.wikimedia.org/wikipedia/commons/f/fb/NEC_PC-9801VX_ITF_beep_sound.ogg
-    beep_url = "beep_sound.ogg"
+    beep_url = Path(__module_dir__, "beep_sound.ogg")
     if int(re.sub(r"[.].+", "", IPython.__version__)) < 7:
         # compatibility with older older IPython (e.g., google colab)
         audio = Audio(filename=beep_url, autoplay=True, embed=True)
