@@ -85,6 +85,14 @@ class PyanetiEnv:
     def lc_dat_filepath(self):
         return Path(self.target_in_dir, self.lc_dat_filename)
 
+    @property
+    def input_fit_filename(self):
+        return "input_fit.py"
+
+    @property
+    def input_fit_filepath(self):
+        return Path(self.target_in_dir, self.input_fit_filename)
+
 
 class Fraction:
     """Represent a fraction. It is used to specify `window_` parameters, as a fraction of some other value."""
@@ -1035,7 +1043,7 @@ def create_input_fit(
     if re.search(r"{[^}]+}", result):
         warnings.warn("create_input_fit(): the created `input_fit.py` still has values not yet defined.")
 
-    input_fit_filepath = Path(pti_env.target_in_dir, "input_fit.py")
+    input_fit_filepath = pti_env.input_fit_filepath
     if write_to_file:
         input_fit_filepath.write_text(result)
 
@@ -1045,13 +1053,17 @@ def create_input_fit(
         return input_fit_filepath
 
 
-def display_pyaneti_input_py_location(input_fit_filepath):
+def display_pyaneti_input_py_location(pti_env):
     from IPython.display import display, HTML
 
     display(
         HTML(
             f"""
-    {html_a_of_file(input_fit_filepath, input_fit_filepath, "_input_fit")}
+<h4>Model Input for {html_a_of_file(pti_env.target_in_dir, pti_env.alias, target="_in_dir", is_dir=True)}&nbsp;
+<a href="https://github.com/oscaribv/pyaneti/wiki/The-input_fit.py-file" target="_doc_input_fit_py"
+   style="font-size: 75%; font-weight: normal;">(documentation)</a>
+</h4>
+&emsp;{html_a_of_file(pti_env.input_fit_filepath, pti_env.input_fit_filename, "_input_fit")}
     """
         )
     )
