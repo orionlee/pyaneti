@@ -30,9 +30,10 @@ __module_dir__ = Path(__file__).parent
 logger = logging.getLogger(__name__)
 log_stdout_handler = logging.StreamHandler(stream=sys.stdout)
 
+
 def log_to_stdout_at_level(level):
     """Set the module logger to the given level, and make it prints to `stdout`.
-        (In Jupyter notebook, info level logging is not printed as there is no handler)
+    (In Jupyter notebook, info level logging is not printed as there is no handler)
     """
     # ensure we add the handler only once, even if the function
     # is called multiple times, to avoid repeated logging.
@@ -104,22 +105,29 @@ class Fraction:
 
 notebook_location = dict()
 
+
 def _init_notebook_location_if_needed(force=False):
     from IPython.display import display, Javascript
+
     # Get the URL of the running notebook to construct URLs for modeling files later
     if force or len(notebook_location) < 1:
-        display(Javascript("""
+        display(
+            Javascript(
+                """
 IPython.notebook.kernel.execute(`lkep.notebook_location["href"] = "${window.location.href}"`);
 IPython.notebook.kernel.execute(`lkep.notebook_location["origin"] = "${window.location.origin}"`);
 IPython.notebook.kernel.execute(`lkep.notebook_location["pathname"] = "${window.location.pathname}"`);
 // basedir of the URL, i.e., without the .ipynb filename
 IPython.notebook.kernel.execute(`lkep.notebook_location["pathdir"] = "${window.location.pathname.replace(/[/][^/]+$/, '')}"`);
-"""))
+"""
+            )
+        )
 
 
 def init_notebook_js_utils():
     """Define Javascript helper functions used in a notebook UI."""
     from IPython.display import display, HTML
+
     _init_notebook_location_if_needed(force=True)
 
     display(
@@ -215,7 +223,9 @@ def _filter_by_priority(
 
         # secondary priority
         exptime_default = max(dict(exptime_sort_keys).values()) + 1
-        exptime_key = exptime_sort_keys.get(_map_cadence_type(row["exptime"] / 60 / 60 / 24), exptime_default)
+        exptime_key = exptime_sort_keys.get(
+            _map_cadence_type(row["exptime"] / 60 / 60 / 24), exptime_default
+        )
         return author_key + exptime_key
 
     sr.table["_filter_priority"] = [calc_filter_priority(r) for r in sr.table]
@@ -254,7 +264,12 @@ def _stitch_lc_collection(lcc, warn_if_multiple_authors=True):
 
 
 def download_lightcurves_by_cadence_type(
-    tic, sector, cadence=["short"], author_priority=["SPOC", "TESS-SPOC", "QLP"], download_dir=None, return_sr=False
+    tic,
+    sector,
+    cadence=["short"],
+    author_priority=["SPOC", "TESS-SPOC", "QLP"],
+    download_dir=None,
+    return_sr=False,
 ):
     """Download the lightcurves of the given TIC - sector combination.
     The downloaded lightcurves are partitioned by cadence type (long / short / fast),
@@ -274,7 +289,9 @@ def download_lightcurves_by_cadence_type(
     exptime_priority = ["fast", "short", "long"]
     # the subset users specified
     exptime_priority = [v for v in exptime_priority if v in cadence]
-    sr = _filter_by_priority(sr_all, author_priority=author_priority, exptime_priority=exptime_priority)
+    sr = _filter_by_priority(
+        sr_all, author_priority=author_priority, exptime_priority=exptime_priority
+    )
 
     # filter by sector and cadence
     if sector is not None:
@@ -323,7 +340,9 @@ def display_lc_by_band_summary(lc_by_band, header):
     for band, lc in lc_by_band.items():
         authors = np.unique(lc.meta.get("AUTHORS"))
         sectors = lc.meta.get("SECTORS")
-        html += f"Band {band}  : {lc.label} ; Sectors: {sectors} ; Author(s): {authors}\n"
+        html += (
+            f"Band {band}  : {lc.label} ; Sectors: {sectors} ; Author(s): {authors}\n"
+        )
     html += "</pre>"
     return display(HTML(html))
 
@@ -351,7 +370,9 @@ def _create_dir_if_needed(path):
         os.makedirs(basedir)
 
 
-def create_transit_mask(lc, transit_specs, include_surround_time=False, default_surround_time_func=None):
+def create_transit_mask(
+    lc, transit_specs, include_surround_time=False, default_surround_time_func=None
+):
     """Create a mask for the transits specified in the `transit_spec` for the lightcurve."""
 
     def calc_duration_to_use(spec):
@@ -383,7 +404,9 @@ def create_transit_mask(lc, transit_specs, include_surround_time=False, default_
 
     # a mask to include the transits,
     # and optionally their surrounding (for out of transit observations)
-    mask = lc.create_transit_mask(period=period, duration=duration, transit_time=transit_time)
+    mask = lc.create_transit_mask(
+        period=period, duration=duration, transit_time=transit_time
+    )
 
     return mask
 
@@ -396,10 +419,11 @@ def _truncate_lc_to_around_transits(lc, transit_specs):
 
     # a mask to include the transits and their surrounding (out of transit observations)
     mask = create_transit_mask(
-        lc, transit_specs,
+        lc,
+        transit_specs,
         include_surround_time=True,
-        default_surround_time_func=lambda duration: duration * 2
-        )
+        default_surround_time_func=lambda duration: duration * 2,
+    )
 
     return lc[mask]
 
@@ -416,21 +440,29 @@ def _merge_and_truncate_lcs(lc_or_lc_by_band, transit_specs):
         lc_trunc["band"] = [band] * len(lc_trunc)
         lc_trunc_by_band[band] = lc_trunc
 
-    lc_trunc = lk.LightCurveCollection(lc_trunc_by_band.values()).stitch(corrector_func=None)
+    lc_trunc = lk.LightCurveCollection(lc_trunc_by_band.values()).stitch(
+        corrector_func=None
+    )
     lc_trunc.sort("time")
     return lc_trunc, lc_trunc_by_band
 
 
-def to_pyaneti_dat(lc_or_lc_by_band, transit_specs, pyaneti_env, return_processed_lc=False):
+def to_pyaneti_dat(
+    lc_or_lc_by_band, transit_specs, pyaneti_env, return_processed_lc=False
+):
     "Output lc data to a file readable by Pyaneti, with lc pre-processed to be suitable for Pyaneti modeling"
-    lc_trunc, lc_trunc_by_band = _merge_and_truncate_lcs(lc_or_lc_by_band, transit_specs)
+    lc_trunc, lc_trunc_by_band = _merge_and_truncate_lcs(
+        lc_or_lc_by_band, transit_specs
+    )
 
     out_path = pyaneti_env.lc_dat_filepath
 
     # finally write to output
     # lc column subset does not work due to bug: https://github.com/lightkurve/lightkurve/issues/1194
     #  lc_trunc["time", "flux", "flux_err"]
-    lc1 = type(lc_trunc)(time=lc_trunc.time.copy(), flux=lc_trunc.flux, flux_err=lc_trunc.flux_err)
+    lc1 = type(lc_trunc)(
+        time=lc_trunc.time.copy(), flux=lc_trunc.flux, flux_err=lc_trunc.flux_err
+    )
     if "band" in lc_trunc.colnames:
         lc1["band"] = lc_trunc["band"]
     _create_dir_if_needed(out_path)
@@ -456,7 +488,11 @@ def scatter_by_band(lc, **kwargs):
     return ax
 
 
-RHO_SUN_CGS = (astropy.constants.M_sun / (4 / 3 * np.pi * astropy.constants.R_sun**3)).to(u.g / u.cm**3).value
+RHO_SUN_CGS = (
+    (astropy.constants.M_sun / (4 / 3 * np.pi * astropy.constants.R_sun**3))
+    .to(u.g / u.cm**3)
+    .value
+)
 
 
 @cached
@@ -512,7 +548,9 @@ def stellar_parameters_from_gaia(gaia_dr2_id):
         val = row[key_val]
         if val is not None:
             # Gaia DR2 gives more precise lower/upper bound of 68% CI, we convert them to a single one error
-            e_val = max(row[key_val] - row[key_p_lower], row[key_p_upper] - row[key_val])
+            e_val = max(
+                row[key_val] - row[key_p_lower], row[key_p_upper] - row[key_val]
+            )
             return val, e_val
         else:
             return None, None
@@ -555,13 +593,18 @@ WHERE source_id=%d"""
     return result
 
 
-def stellar_parameters_of_tic(tic, also_use_gaia=True, diff_warning_threshold_percent=10):
+def stellar_parameters_of_tic(
+    tic, also_use_gaia=True, diff_warning_threshold_percent=10
+):
     """Obtain stellar parameters from MAST, and optionally from Gaia as well."""
 
     def warn_if_significant_diff(meta_mast, meta_gaia, param_name):
         val_mast, val_gaia = meta_mast[param_name], meta_gaia[param_name]
         if val_mast is not None and val_gaia is not None:
-            if abs(val_mast - val_gaia) / val_mast > diff_warning_threshold_percent / 100:
+            if (
+                abs(val_mast - val_gaia) / val_mast
+                > diff_warning_threshold_percent / 100
+            ):
                 warnings.warn(
                     f"Significant difference (> {diff_warning_threshold_percent}%) in {param_name} . MAST: {val_mast} ; Gaia DR2: {val_gaia}"
                 )
@@ -648,7 +691,7 @@ def estimate_planet_radius_in_r_star(r_star, depth):
     transiting across the center of the host star (impact parameter `b` = 0)
     """
     depth = np.asarray(depth)
-    if r_star is None or r_star < 0 or depth is None: # TODO: handle depth <= 0:
+    if r_star is None or r_star < 0 or depth is None:  # TODO: handle depth <= 0:
         return None  # cannot estimate
 
     R_JUPITER_IN_R_SUN = 71492 / 695700
@@ -680,8 +723,8 @@ def estimate_orbital_distance_in_r_star(tic_meta, transit_specs):
         # (somewhat)similar scenario
         # https://github.com/oscaribv/pyaneti/blob/c6b6eb66854b8e079a7dbe8057df4cb809f10764/src/prepare_data.py#L243-L244
         min_a=np.full(np.shape(transit_specs), 1.1),
-        max_a=np.full(np.shape(transit_specs), 1000.0)
-        )
+        max_a=np.full(np.shape(transit_specs), 1000.0),
+    )
 
 
 def define_impact_parameter():
@@ -712,7 +755,11 @@ def display_stellar_meta_links(meta, header=None):
 
 class ModelTemplate:
     FIT_TYPES = ["orbital_distance", "rho", "single_transit"]
-    _FIT_TYPES_ABBREV = {"orbital_distance": "fit_a", "rho": "fit_rho", "single_transit": "single_transit"}
+    _FIT_TYPES_ABBREV = {
+        "orbital_distance": "fit_a",
+        "rho": "fit_rho",
+        "single_transit": "single_transit",
+    }
     ORBIT_TYPES = ["circular", "eccentric"]
     _ORBIT_TYPES_ABBREV = {"circular": "circular", "eccentric": "eccentric"}
     _ORBIT_TYPES_ABBREV2 = {"circular": "c", "eccentric": "e"}
@@ -752,7 +799,9 @@ class ModelTemplate:
     @staticmethod
     def _validate(val, allowed_values, val_name):
         if val not in allowed_values:
-            raise ValueError(f"{val_name} 's value {val} is invalid. Options: {allowed_values}")
+            raise ValueError(
+                f"{val_name} 's value {val} is invalid. Options: {allowed_values}"
+            )
 
 
 def create_input_fit(
@@ -789,8 +838,16 @@ def create_input_fit(
         else:
             return [val] * repeat_n
 
-    def process_priors(map, key_prior, src, key_prior_src=None, fraction_base_func=None, repeat_n=1, default=None, repeat_default=None):
-
+    def process_priors(
+        map,
+        key_prior,
+        src,
+        key_prior_src=None,
+        fraction_base_func=None,
+        repeat_n=1,
+        default=None,
+        repeat_default=None,
+    ):
         def do_repeat(val, repeat_n_to_use=repeat_n):
             return repeat(val, repeat_n_to_use)
 
@@ -813,48 +870,85 @@ def create_input_fit(
         key_prior_type = f"type_{key_prior}"
         key_prior_val1 = f"val1_{key_prior}"
         key_prior_val2 = f"val2_{key_prior}"
-        if src.get(key_prior_src) is not None and src.get(key_prior_src_error) is not None:
+        if (
+            src.get(key_prior_src) is not None
+            and src.get(key_prior_src_error) is not None
+        ):
             logger.info(f"Prior {key_prior}: resolved to Gaussian")
             map[key_prior_val1] = do_repeat(src.get(key_prior_src))  # Mean
-            map[key_prior_val2] = do_repeat(src.get(key_prior_src_error))  # Standard Deviation
-            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_val2] = do_repeat(
+                src.get(key_prior_src_error)
+            )  # Standard Deviation
+            num_to_repeat = get_len(
+                map[key_prior_val1]
+            )  # needed for case the value is already an list (thus `repeat_n` is None)
             map[key_prior_type] = do_repeat("g", num_to_repeat)  # Gaussian Prior
-        elif src.get(key_prior_src_min) is not None and src.get(key_prior_src_max) is not None:
+        elif (
+            src.get(key_prior_src_min) is not None
+            and src.get(key_prior_src_max) is not None
+        ):
             logger.info(f"Prior {key_prior}: resolved to Uniform")
             map[key_prior_val1] = do_repeat(src.get(key_prior_src_min))  # Minimum
             map[key_prior_val2] = do_repeat(src.get(key_prior_src_max))  # Maximum
-            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            num_to_repeat = get_len(
+                map[key_prior_val1]
+            )  # needed for case the value is already an list (thus `repeat_n` is None)
             map[key_prior_type] = do_repeat("u", num_to_repeat)  # Uniform Prior
-        elif src.get(key_prior_src) is not None and src.get(key_prior_src_window) is not None:
+        elif (
+            src.get(key_prior_src) is not None
+            and src.get(key_prior_src_window) is not None
+        ):
             logger.info(f"Prior {key_prior}: resolved to Uniform (by mean and window)")
             window = src.get(key_prior_src_window)
             # check for `value` attribute rather than testing against Fraction instance
             # so that the codes would work even if users have reloaded the module after
             # fraction is defined initially in `transit_specs`.
             # if isinstance(window, Fraction):
-            if hasattr(window[0], "value"):  # i.e, a Fraction type # OPEN: it does not work when `src` returns scalars
-                fraction_base = src.get(key_prior_src) if fraction_base_func is None else fraction_base_func(src)
+            if hasattr(
+                window[0], "value"
+            ):  # i.e, a Fraction type # OPEN: it does not work when `src` returns scalars
+                fraction_base = (
+                    src.get(key_prior_src)
+                    if fraction_base_func is None
+                    else fraction_base_func(src)
+                )
                 window = fraction_base * np.asarray([i.value for i in window])
-            map[key_prior_val1] = do_repeat(src.get(key_prior_src) - window / 2)  # Minimum
-            map[key_prior_val2] = do_repeat(src.get(key_prior_src) + window / 2)  # Maximum
-            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_val1] = do_repeat(
+                src.get(key_prior_src) - window / 2
+            )  # Minimum
+            map[key_prior_val2] = do_repeat(
+                src.get(key_prior_src) + window / 2
+            )  # Maximum
+            num_to_repeat = get_len(
+                map[key_prior_val1]
+            )  # needed for case the value is already an list (thus `repeat_n` is None)
             map[key_prior_type] = do_repeat("u", num_to_repeat)  # Uniform Prior
         elif src.get(key_prior_src) is not None:
             logger.info(f"Prior {key_prior}: resolved to Fixed")
             map[key_prior_val1] = do_repeat(src.get(key_prior_src))  # Fixed value
-            map[key_prior_val2] = do_repeat(src.get(key_prior_src))  # does not matter for fixed value
-            num_to_repeat = get_len(map[key_prior_val1]) # needed for case the value is already an list (thus `repeat_n` is None)
+            map[key_prior_val2] = do_repeat(
+                src.get(key_prior_src)
+            )  # does not matter for fixed value
+            num_to_repeat = get_len(
+                map[key_prior_val1]
+            )  # needed for case the value is already an list (thus `repeat_n` is None)
             map[key_prior_type] = do_repeat("f", num_to_repeat)  # Fixed Prior
         elif default is not None:
             prior_type = default[key_prior_type]
             if prior_type is not None:
-                logger.info(f"Prior {key_prior}: not defined. Default is used. Type: '{prior_type}'")
+                logger.info(
+                    f"Prior {key_prior}: not defined. Default is used. Type: '{prior_type}'"
+                )
                 for key, value in default.items():
                     map[key] = repeat(value, repeat_default)
             else:
-                raise AssertionError(f"Prior {key_prior} is not defined, but the supplied default is incomplete: {default}")
+                raise AssertionError(
+                    f"Prior {key_prior} is not defined, but the supplied default is incomplete: {default}"
+                )
         else:
-            raise ValueError(f"Prior {key_prior} is not defined or only partly defined.")
+            raise ValueError(
+                f"Prior {key_prior} is not defined or only partly defined."
+            )
 
     def process_orbit_type(map, num_planets):
         if template.orbit_type == "circular":
@@ -901,7 +995,10 @@ def create_input_fit(
 
         def calc_cadence(lc):
             # deduce the cadence
-            cadence_in_min = np.round(np.nanmedian(np.asarray([t.to(u.min).value for t in np.diff(lc.time)])), decimals=1)
+            cadence_in_min = np.round(
+                np.nanmedian(np.asarray([t.to(u.min).value for t in np.diff(lc.time)])),
+                decimals=1,
+            )
             # For n_cad, we use the following reference:
             # - t_cad_in_min == 30 (Kepler) ==> n_cad = 10
             # - t_cad_in_min == 2 (TESS Short cadence) ==> n_cad = 1
@@ -931,31 +1028,32 @@ def create_input_fit(
 
     def add_dummy_rvs_params(map, num_planets):
         """Add dummy RV fitting params.
-           They are necessary for multi-planet case, as Pyaneti cannot process the input file otherwise.
-           """
+        They are necessary for multi-planet case, as Pyaneti cannot process the input file otherwise.
+        """
         map["fit_rv"] = repeat(False, num_planets)
-        map["fit_k"] = repeat('f', num_planets)
+        map["fit_k"] = repeat("f", num_planets)
         map["min_k"] = repeat(0.0, num_planets)
         map["max_k"] = repeat(1.0, num_planets)
 
-
     def transit_specs_to_columns(transit_specs):
         """Convert row-oriented free form transit_specs to a set of columns.
-           Use case: the set of columns is used by `process_priors`()`.
+        Use case: the set of columns is used by `process_priors`()`.
         """
         result = dict()
 
         def add_to_result_if_exist(param_name):
             spec0 = transit_specs[0]
             values = np.asarray([i.get(param_name) for i in transit_specs])
-            values_are_none = (None == values)
+            values_are_none = None == values
 
             if values_are_none.all():
                 # the param is not in transit specs
                 return False
             elif values_are_none.any():
                 # the param is in some specs, but not all
-                warnings.warn(f"In transit_specs, parameter {param_name} does not exist for all entries. It is ignored in the mapping due to implementation limitation.")
+                warnings.warn(
+                    f"In transit_specs, parameter {param_name} does not exist for all entries. It is ignored in the mapping due to implementation limitation."
+                )
                 return False
             else:
                 result[param_name] = values
@@ -964,14 +1062,21 @@ def create_input_fit(
         # Note: the implementation is not fully generic, but is sufficient for our use case here.
         # TODO: handle cases such that transit_specs[0] uses `window_epoch`, but transit_specs[1] uses `min_epoch` / `max_epoch`
         for param_name in [
-            "epoch", "window_epoch", "min_epoch", "max_epoch", "e_epoch",
-            "period", "window_period", "min_period", "max_period", "e_period",
+            "epoch",
+            "window_epoch",
+            "min_epoch",
+            "max_epoch",
+            "e_epoch",
+            "period",
+            "window_period",
+            "min_period",
+            "max_period",
+            "e_period",
             "duration_hr",
-            ]:
+        ]:
             add_to_result_if_exist(param_name)
 
         return result
-
 
     # First process and combine all the given parameters
     # into a mapping table, which will be used to instantiate
@@ -996,13 +1101,23 @@ def create_input_fit(
 
     process_orbit_type(mapping, num_planets=num_planets)
     transit_spec_cols = transit_specs_to_columns(transit_specs)
-    process_priors(mapping, "epoch", transit_spec_cols, fraction_base_func=lambda specs: specs["duration_hr"] / 24, repeat_n=None)
-    process_priors(mapping, "period", transit_spec_cols, repeat_n=None,
+    process_priors(
+        mapping,
+        "epoch",
+        transit_spec_cols,
+        fraction_base_func=lambda specs: specs["duration_hr"] / 24,
+        repeat_n=None,
+    )
+    process_priors(
+        mapping,
+        "period",
+        transit_spec_cols,
+        repeat_n=None,
         # if users do not specify period (single transit case), we give a large uniform prior
         # note: for default, the keys refers to the ones in the template file, not transit specs
-        default=dict(type_period='u', val1_period=0.01, val2_period=9999),
+        default=dict(type_period="u", val1_period=0.01, val2_period=9999),
         repeat_default=len(transit_specs),
-        )
+    )
     process_priors(mapping, "b", mapping, repeat_n=num_planets)
     process_fit_type(mapping, num_planets=num_planets)
     # TODO: validate the supplied `r_planet_in_r_star` does have `num_planets` elements
@@ -1038,11 +1153,13 @@ def create_input_fit(
             # do not use `np.array2string()`, because
             # - its output  can be affected by various numpy printoptions settings
             # - requires numpy > 1.11 (not as important)
-            value_str = '[' + ', '.join([str(v) for v in value]) + ']'
+            value_str = "[" + ", ".join([str(v) for v in value]) + "]"
         result = result.replace("{" + key + "}", value_str)
 
     if re.search(r"{[^}]+}", result):
-        warnings.warn("create_input_fit(): the created `input_fit.py` still has values not yet defined.")
+        warnings.warn(
+            "create_input_fit(): the created `input_fit.py` still has values not yet defined."
+        )
 
     input_fit_filepath = pti_env.input_fit_filepath
     if write_to_file:
@@ -1121,6 +1238,7 @@ tweakCSS();
         audio = Audio(filename=beep_url, autoplay=True, embed=True, element_id="beep")
     display(audio)
 
+
 #
 # Read Pyaneti model output, lightcurve files, etc.
 #
@@ -1164,7 +1282,6 @@ def display_model(
         else:
             return display(HTML(f"[ Image <code>{img_path}</code> not found. ]"))
 
-
     target_out_dir = pti_env.target_out_dir
     alias = pti_env.alias
     display(
@@ -1195,8 +1312,8 @@ def display_model(
     if show_correlations:
         _show_image(Path(target_out_dir, f"{alias}_correlations.png"))
     if show_transits:
-        planets_suffix = _char_list_inclusive('b', 'z')
-        planets_suffix = planets_suffix[:template.num_planets]
+        planets_suffix = _char_list_inclusive("b", "z")
+        planets_suffix = planets_suffix[: template.num_planets]
         for suffix in planets_suffix:
             display(HTML(f"""<h5 style="text-align: center;">Planet {suffix}:</h5>"""))
             _show_image(Path(target_out_dir, f"{alias}{suffix}_tr.png"))
