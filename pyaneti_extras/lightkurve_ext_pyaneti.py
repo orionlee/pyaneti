@@ -4,7 +4,7 @@
 #
 
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 import os
 from pathlib import Path
 import re
@@ -751,6 +751,37 @@ def display_stellar_meta_links(meta, header=None):
 &emsp;(<a target="_gaia_esa" href="https://gea.esac.esa.int/archive/" style="font-size: 85%;">Official Archive at ESA</a>)<br>
 """
     display(HTML(f"{exofop_html}<br>{gaia_html}"))
+
+
+def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
+    def is_arraylike_with_None_or_Masked(val):
+        if not isinstance(val, (Sequence, np.ma.core.MaskedArray)):
+            return False
+        return np.ma.is_masked(val) or (np.asarray(val) == None).any()
+
+    warning_msgs = []
+    def display_dict_w_warning(a_dict, header, keys=None):
+        keys = a_dict.keys() if keys is None else keys
+        print(f"{header}:")
+        for k in keys:
+            val = a_dict.get(k)
+            print(f"    {k}:  {val}")
+            # sometimes MAST result will contain is numpy masked, effectively unusable.
+            # warn the user
+            if val is None or isinstance(val, np.ma.core.MaskedConstant) or is_arraylike_with_None_or_Masked(val):
+                warning_msgs.append(f"WARNING: parameter {k} is missing: {val}")
+
+    display_dict_w_warning(
+        meta,
+        "meta (stellar params from catalogs)",
+        ['ID', 'rad', 'e_rad', 'mass', 'e_mass', 'Teff', 'e_Teff', 'rho', 'e_rho', 'logg']
+    )
+    display_dict_w_warning(r_planet_dict, "r_planet_dict (Rp/R*, derived)")
+    display_dict_w_warning(a_planet_dict, "a_planet_dict (a/R*, derived)")
+    display_dict_w_warning(q1_q2, "q1_q2 (limb darkening coefficients, derived)")
+    for w_msg in warning_msgs:
+        # use print rather than warnings.warn, to ensure they don't get suppressed
+        print(w_msg)
 
 
 class ModelTemplate:
