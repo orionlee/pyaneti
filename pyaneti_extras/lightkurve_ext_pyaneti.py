@@ -5,6 +5,7 @@
 
 from collections import OrderedDict
 from collections.abc import Iterable, Sequence
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -864,6 +865,30 @@ class ModelTemplate:
             )
 
 
+def _checksum_of_file(filepath: Path) -> str:
+    file_hash = hashlib.blake2b()
+    file_hash.update(filepath.read_bytes())
+    checksum = file_hash.hexdigest()
+    return checksum
+
+
+# Use case: to guard against users having manually edited the generated `input_fit.py`, forgotten about it and
+# accidentally overwritten the file, and lost their manual edit.
+def _write_to_file_with_checksum(filepath: Path, text: str, overwrite_manually_changed_file: bool):
+    checksumpath = Path (filepath.parent, filepath.name + ".checksum")
+
+    if filepath.exists() and not overwrite_manually_changed_file and checksumpath.exists():
+        expected = checksumpath.read_text()
+        actual = _checksum_of_file(filepath)
+        if actual != expected:
+            raise Exception(f"{filepath} has been changed manually. It is not updated. To overwrite it, set overwrite_manually_changed_file=True")
+
+    # checksum test passed (or N/A), now I can write the file
+    filepath.write_text(text)
+    checksum = _checksum_of_file(filepath)
+    checksumpath.write_text(checksum)
+
+
 def create_input_fit(
     template,
     tic,
@@ -878,6 +903,7 @@ def create_input_fit(
     a_planet_dict,
     mcmc_controls,
     write_to_file=True,
+    overwrite_manually_changed_file=False,
     return_content=False,
 ):
     """Output parts of Pyaneti `input_fit.py` based on the specification included"""
@@ -1223,7 +1249,7 @@ def create_input_fit(
 
     input_fit_filepath = pti_env.input_fit_filepath
     if write_to_file:
-        input_fit_filepath.write_text(result)
+        _write_to_file_with_checksum(input_fit_filepath, result, overwrite_manually_changed_file)
 
     if return_content:
         return input_fit_filepath, result
