@@ -620,7 +620,7 @@ def stellar_parameters_of_tic(
     return meta
 
 
-def get_limb_darkening_params(tic_meta):
+def get_limb_darkening_params(Teff, logg):
     """Estimate Limb Darkening Quadratic Coefficients for TESS.
     The data is from
     [Claret et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017A%26A...600A..30C/abstract),
@@ -630,10 +630,7 @@ def get_limb_darkening_params(tic_meta):
     """
     # Logic derived from:
     # https://github.com/hippke/tls/blob/v1.0.31/transitleastsquares/catalog.py
-    logg, Teff, = (
-        tic_meta.get("logg"),
-        tic_meta.get("Teff"),
-    )
+
     if logg is None:
         logg = 4
         warnings.warn("No logg in metadata. Proceeding with logg=4")
@@ -680,19 +677,30 @@ def get_limb_darkening_params(tic_meta):
     return dict(q1=q1, e_q1=e_q1, q2=q2, e_q2=e_q2, u1=u1, e_u1=e_u1, u2=u2, e_u2=e_u2)
 
 
+def _is_arraylike_with_None_or_Masked(val):
+    if not isinstance(val, (Sequence, np.ma.core.MaskedArray)):
+        return False
+    return np.ma.is_masked(val) or (np.asarray(val) == None).any()
+
+
+def _is_None_or_is_arraylike_with_None_or_Masked(val):
+    return val is None or _is_arraylike_with_None_or_Masked(val)
+
+
 def _round_n_decimals(num, num_decimals):
     factor = np.power(10, num_decimals)
     return np.round(num * factor) / factor
 
 
-def estimate_planet_radius_in_r_star(r_star, depth):
+def estimate_planet_radius_in_r_star(r_star, depth_percent):
     """Return a back of envelope estimate of a planet object's radius,
     based on the simple model of a planet with circular orbit,
     transiting across the center of the host star (impact parameter `b` = 0)
     """
-    depth = np.asarray(depth)
-    if r_star is None or r_star < 0 or depth is None:  # TODO: handle depth <= 0:
+    if r_star is None or r_star < 0 or _is_None_or_is_arraylike_with_None_or_Masked(depth_percent):  # TODO: handle depth <= 0:
         return None  # cannot estimate
+
+    depth = np.asarray(depth_percent) / 100
 
     R_JUPITER_IN_R_SUN = 71492 / 695700
 
@@ -716,14 +724,35 @@ def estimate_planet_radius_in_r_star(r_star, depth):
     )
 
 
-def estimate_orbital_distance_in_r_star(tic_meta, transit_specs):
-    # TODO: possibly use Kepler third law for better constraints
-    return dict(
+def estimate_orbital_distance_in_r_star(transits_depth_percent, periods, transits_duration_hr_total, transits_duration_hr_full):
+    if (
+        _is_None_or_is_arraylike_with_None_or_Masked(transits_depth_percent) or _is_None_or_is_arraylike_with_None_or_Masked(periods) or
+        _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_total) or _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_full)
+        ):
+        # case missing required parameters to make derivation
         # the arbitrary min/max is inspired by what Pyaneti chooses in a
         # (somewhat)similar scenario
         # https://github.com/oscaribv/pyaneti/blob/c6b6eb66854b8e079a7dbe8057df4cb809f10764/src/prepare_data.py#L243-L244
-        min_a=np.full(np.shape(transit_specs), 1.1),
-        max_a=np.full(np.shape(transit_specs), 1000.0),
+        return dict(
+            min_a=np.full(np.shape(transits_depth_percent), 1.1),
+            max_a=np.full(np.shape(transits_depth_percent), 1000.0),
+        )
+
+    periods = np.asarray(periods)
+    transits_depth = np.asarray(transits_depth_percent) / 100
+    transits_duration_total = np.asarray(transits_duration_hr_total) / 24
+    transits_duration_full = np.asarray(transits_duration_hr_full) / 24
+
+    # based on equation (1.10) in Odunlade 2010 (PhD Thesis)
+    # https://www.astro.ex.ac.uk/people/alapini/Publications/PhD_chap1.pdf
+    # which is in turn based on Seager & Mallén-Ornelas (2003)
+    # https://ui.adsabs.harvard.edu/abs/2003ApJ...585.1038S/abstract
+    a = (periods * 2 / np.pi) * (transits_depth ** 0.25 / (transits_duration_total ** 2 - transits_duration_full ** 2) ** 0.5)
+
+    return dict(
+        a=a,
+        min_a=a * 0.1,
+        max_a = a * 10,
     )
 
 
@@ -754,11 +783,6 @@ def display_stellar_meta_links(meta, header=None):
 
 
 def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
-    def is_arraylike_with_None_or_Masked(val):
-        if not isinstance(val, (Sequence, np.ma.core.MaskedArray)):
-            return False
-        return np.ma.is_masked(val) or (np.asarray(val) == None).any()
-
     warning_msgs = []
     def display_dict_w_warning(a_dict, header, keys=None):
         keys = a_dict.keys() if keys is None else keys
@@ -768,7 +792,7 @@ def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
             print(f"    {k}:  {val}")
             # sometimes MAST result will contain is numpy masked, effectively unusable.
             # warn the user
-            if val is None or isinstance(val, np.ma.core.MaskedConstant) or is_arraylike_with_None_or_Masked(val):
+            if val is None or isinstance(val, np.ma.core.MaskedConstant) or _is_arraylike_with_None_or_Masked(val):
                 warning_msgs.append(f"WARNING: parameter {k} is missing: {val}")
 
     display_dict_w_warning(
