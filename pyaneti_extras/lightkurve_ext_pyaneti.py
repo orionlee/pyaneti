@@ -785,8 +785,13 @@ def display_stellar_meta_links(meta, header=None):
 def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
     warning_msgs = []
     def display_dict_w_warning(a_dict, header, keys=None):
-        keys = a_dict.keys() if keys is None else keys
         print(f"{header}:")
+        if a_dict is None:
+            print("    None")
+            warning_msgs.append(f"WARNING: {header} is missing")
+            return
+
+        keys = a_dict.keys() if keys is None else keys
         for k in keys:
             val = a_dict.get(k)
             print(f"    {k}:  {val}")
