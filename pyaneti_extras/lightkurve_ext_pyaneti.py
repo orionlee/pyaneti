@@ -491,15 +491,17 @@ def scatter_by_band(lc, **kwargs):
 
 def plot_transit_at_epoch(lc, a_spec, ax=None):
     """Plot the transit at the epoch of the given transit spec.
-       It is used to visualize and valide the transit spec parameters.
-       Period is not covered as the plot is zoomed into the specified epoch.
+    It is used to visualize and valide the transit spec parameters.
+    Period is not covered as the plot is zoomed into the specified epoch.
     """
     epoch = a_spec["epoch"]
     if epoch < lc.time.min().value or epoch > lc.time.max().value:
         # handle cases the given epoch is not in date range of the lightcurve.
         period = a_spec.get("period", None)
         if period is None:
-            print(f"WARNING. The given epoch {epoch} is outside of the given lightcurve. No plot is made")
+            print(
+                f"WARNING. The given epoch {epoch} is outside of the given lightcurve. No plot is made"
+            )
             return ax
         if epoch > lc.time.max().value:
             num_cycle = np.ceil((epoch - lc.time.max().value) / period)
@@ -510,7 +512,9 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
 
         # now we have adjusted the epoch, check again to see if the new one falls
         if epoch_adjusted < lc.time.min().value or epoch_adjusted > lc.time.max().value:
-            print(f"WARNING. The given epoch {epoch} / period is outside of the given lightcurve. No plot is made")
+            print(
+                f"WARNING. The given epoch {epoch} / period is outside of the given lightcurve. No plot is made"
+            )
             return ax
         # all things checked out, use the new epoch that falls into the given lc.
         epoch = epoch_adjusted
@@ -522,13 +526,15 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
     duration_full = duration_full_hr / 24 if duration_full_hr is not None else None
 
     lc = lc.truncate(epoch - window / 2, epoch + window / 2)
-    lc.meta["LABEL"] = lc.meta.get('LABEL') + ' ' + a_spec.get('label', '')
+    lc.meta["LABEL"] = lc.meta.get("LABEL") + " " + a_spec.get("label", "")
     ax = lc.scatter(ax=ax)
     ax.axvline(epoch - duration / 2, c="red")
     ax.axvline(epoch + duration / 2, c="red", label="transit")
     if duration_full is not None:
         ax.axvline(epoch - duration_full / 2, c="red", linestyle="--")
-        ax.axvline(epoch + duration_full / 2, c="red", linestyle="--", label="transit, full")
+        ax.axvline(
+            epoch + duration_full / 2, c="red", linestyle="--", label="transit, full"
+        )
 
     # mark epoch; also shows transit depth if it's given
     epoch_label = "epoch"
@@ -537,11 +543,27 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
         # approximation of typical flux outside the transits
         ymax = np.nanmedian(lc.truncate(None, epoch - duration_full / 2).flux.value)
         ymin = ymax - transit_depth_percent / 100
-        ax.vlines(epoch, ymax=ymax, ymin=ymin,
-            color="blue", linestyle="--", label=f"{epoch_label}, depth:{transit_depth_percent:.2f}%")
+        ax.vlines(
+            epoch,
+            ymax=ymax,
+            ymin=ymin,
+            color="blue",
+            linestyle="--",
+            label=f"{epoch_label}, depth:{transit_depth_percent:.2f}%",
+        )
         # add additional horizontal lines to make it clearer that vline refers to the depth as well.
-        ax.hlines(ymax, xmin=epoch - duration * 0.05, xmax=epoch + duration * 0.05, color="blue")
-        ax.hlines(ymin, xmin=epoch - duration * 0.05, xmax=epoch + duration * 0.05, color="blue")
+        ax.hlines(
+            ymax,
+            xmin=epoch - duration * 0.05,
+            xmax=epoch + duration * 0.05,
+            color="blue",
+        )
+        ax.hlines(
+            ymin,
+            xmin=epoch - duration * 0.05,
+            xmax=epoch + duration * 0.05,
+            color="blue",
+        )
     else:
         ax.axvline(epoch, ymax=0.15, c="blue", linestyle="--", label=epoch_label)
     ax.legend()
@@ -757,7 +779,11 @@ def estimate_planet_radius_in_r_star(r_star, depth_percent):
     based on the simple model of a planet with circular orbit,
     transiting across the center of the host star (impact parameter `b` = 0)
     """
-    if r_star is None or r_star < 0 or _is_None_or_is_arraylike_with_None_or_Masked(depth_percent):  # TODO: handle depth <= 0:
+    if (
+        r_star is None
+        or r_star < 0
+        or _is_None_or_is_arraylike_with_None_or_Masked(depth_percent)
+    ):  # TODO: handle depth <= 0:
         return None  # cannot estimate
 
     depth = np.asarray(depth_percent) / 100
@@ -784,11 +810,18 @@ def estimate_planet_radius_in_r_star(r_star, depth_percent):
     )
 
 
-def estimate_orbital_distance_in_r_star(transits_depth_percent, periods, transits_duration_hr_total, transits_duration_hr_full):
+def estimate_orbital_distance_in_r_star(
+    transits_depth_percent,
+    periods,
+    transits_duration_hr_total,
+    transits_duration_hr_full,
+):
     if (
-        _is_None_or_is_arraylike_with_None_or_Masked(transits_depth_percent) or _is_None_or_is_arraylike_with_None_or_Masked(periods) or
-        _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_total) or _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_full)
-        ):
+        _is_None_or_is_arraylike_with_None_or_Masked(transits_depth_percent)
+        or _is_None_or_is_arraylike_with_None_or_Masked(periods)
+        or _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_total)
+        or _is_None_or_is_arraylike_with_None_or_Masked(transits_duration_hr_full)
+    ):
         # case missing required parameters to make derivation
         # the arbitrary min/max is inspired by what Pyaneti chooses in a
         # (somewhat)similar scenario
@@ -807,12 +840,15 @@ def estimate_orbital_distance_in_r_star(transits_depth_percent, periods, transit
     # https://www.astro.ex.ac.uk/people/alapini/Publications/PhD_chap1.pdf
     # which is in turn based on Seager & Mallén-Ornelas (2003)
     # https://ui.adsabs.harvard.edu/abs/2003ApJ...585.1038S/abstract
-    a = (periods * 2 / np.pi) * (transits_depth ** 0.25 / (transits_duration_total ** 2 - transits_duration_full ** 2) ** 0.5)
+    a = (periods * 2 / np.pi) * (
+        transits_depth**0.25
+        / (transits_duration_total**2 - transits_duration_full**2) ** 0.5
+    )
 
     return dict(
         a=a,
         min_a=a * 0.1,
-        max_a = a * 10,
+        max_a=a * 10,
     )
 
 
@@ -844,6 +880,7 @@ def display_stellar_meta_links(meta, header=None):
 
 def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
     warning_msgs = []
+
     def display_dict_w_warning(a_dict, header, keys=None):
         print(f"{header}:")
         if a_dict is None:
@@ -857,13 +894,28 @@ def display_parameters_for_model(meta, r_planet_dict, a_planet_dict, q1_q2):
             print(f"    {k}:  {val}")
             # sometimes MAST result will contain is numpy masked, effectively unusable.
             # warn the user
-            if val is None or isinstance(val, np.ma.core.MaskedConstant) or _is_arraylike_with_None_or_Masked(val):
+            if (
+                val is None
+                or isinstance(val, np.ma.core.MaskedConstant)
+                or _is_arraylike_with_None_or_Masked(val)
+            ):
                 warning_msgs.append(f"WARNING: parameter {k} is missing: {val}")
 
     display_dict_w_warning(
         meta,
         "meta (stellar params from catalogs)",
-        ['ID', 'rad', 'e_rad', 'mass', 'e_mass', 'Teff', 'e_Teff', 'rho', 'e_rho', 'logg']
+        [
+            "ID",
+            "rad",
+            "e_rad",
+            "mass",
+            "e_mass",
+            "Teff",
+            "e_Teff",
+            "rho",
+            "e_rho",
+            "logg",
+        ],
     )
     display_dict_w_warning(r_planet_dict, "r_planet_dict (Rp/R*, derived)")
     display_dict_w_warning(a_planet_dict, "a_planet_dict (a/R*, derived)")
@@ -933,14 +985,22 @@ def _checksum_of_file(filepath: Path) -> str:
 
 # Use case: to guard against users having manually edited the generated `input_fit.py`, forgotten about it and
 # accidentally overwritten the file, and lost their manual edit.
-def _write_to_file_with_checksum(filepath: Path, text: str, overwrite_manually_changed_file: bool):
-    checksumpath = Path (filepath.parent, filepath.name + ".checksum")
+def _write_to_file_with_checksum(
+    filepath: Path, text: str, overwrite_manually_changed_file: bool
+):
+    checksumpath = Path(filepath.parent, filepath.name + ".checksum")
 
-    if filepath.exists() and not overwrite_manually_changed_file and checksumpath.exists():
+    if (
+        filepath.exists()
+        and not overwrite_manually_changed_file
+        and checksumpath.exists()
+    ):
         expected = checksumpath.read_text()
         actual = _checksum_of_file(filepath)
         if actual != expected:
-            raise Exception(f"{filepath} has been changed manually. It is not updated. To overwrite it, set overwrite_manually_changed_file=True")
+            raise Exception(
+                f"{filepath} has been changed manually. It is not updated. To overwrite it, set overwrite_manually_changed_file=True"
+            )
 
     # checksum test passed (or N/A), now I can write the file
     filepath.write_text(text)
@@ -1308,7 +1368,9 @@ def create_input_fit(
 
     input_fit_filepath = pti_env.input_fit_filepath
     if write_to_file:
-        _write_to_file_with_checksum(input_fit_filepath, result, overwrite_manually_changed_file)
+        _write_to_file_with_checksum(
+            input_fit_filepath, result, overwrite_manually_changed_file
+        )
 
     if return_content:
         return input_fit_filepath, result
