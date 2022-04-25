@@ -522,6 +522,7 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
     duration_full = duration_full_hr / 24 if duration_full_hr is not None else None
 
     lc = lc.truncate(epoch - window / 2, epoch + window / 2)
+    lc.meta["LABEL"] = lc.meta.get('LABEL') + ' ' + a_spec.get('label', '')
     ax = lc.scatter(ax=ax)
     ax.axvline(epoch - duration / 2, c="red")
     ax.axvline(epoch + duration / 2, c="red", label="transit")
@@ -530,13 +531,17 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
         ax.axvline(epoch + duration_full / 2, c="red", linestyle="--", label="transit, full")
 
     # mark epoch; also shows transit depth if it's given
-    epoch_label = f"epoch {a_spec.get('label', '')}"
+    epoch_label = "epoch"
     transit_depth_percent = a_spec.get("transit_depth_percent")
     if transit_depth_percent is not None:
         # approximation of typical flux outside the transits
         ymax = np.nanmedian(lc.truncate(None, epoch - duration_full / 2).flux.value)
-        ax.vlines(epoch, ymax=ymax, ymin=ymax - transit_depth_percent / 100,
+        ymin = ymax - transit_depth_percent / 100
+        ax.vlines(epoch, ymax=ymax, ymin=ymin,
             color="blue", linestyle="--", label=f"{epoch_label}, depth:{transit_depth_percent:.2f}%")
+        # add additional horizontal lines to make it clearer that vline refers to the depth as well.
+        ax.hlines(ymax, xmin=epoch - duration * 0.05, xmax=epoch + duration * 0.05, color="blue")
+        ax.hlines(ymin, xmin=epoch - duration * 0.05, xmax=epoch + duration * 0.05, color="blue")
     else:
         ax.axvline(epoch, ymax=0.15, c="blue", linestyle="--", label=epoch_label)
     ax.legend()
