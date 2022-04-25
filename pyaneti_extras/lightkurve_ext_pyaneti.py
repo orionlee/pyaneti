@@ -489,6 +489,60 @@ def scatter_by_band(lc, **kwargs):
     return ax
 
 
+def plot_transit_at_epoch(lc, a_spec, ax=None):
+    """Plot the transit at the epoch of the given transit spec.
+       It is used to visualize and valide the transit spec parameters.
+       Period is not covered as the plot is zoomed into the specified epoch.
+    """
+    epoch = a_spec["epoch"]
+    if epoch < lc.time.min().value or epoch > lc.time.max().value:
+        # handle cases the given epoch is not in date range of the lightcurve.
+        period = a_spec.get("period", None)
+        if period is None:
+            print(f"WARNING. The given epoch {epoch} is outside of the given lightcurve. No plot is made")
+            return ax
+        if epoch > lc.time.max().value:
+            num_cycle = np.ceil((epoch - lc.time.max().value) / period)
+            epoch_adjusted = epoch - period * num_cycle
+        else:
+            num_cycle = np.ceil((lc.time.min().value - epoch) / period)
+            epoch_adjusted = epoch + period * num_cycle
+
+        # now we have adjusted the epoch, check again to see if the new one falls
+        if epoch_adjusted < lc.time.min().value or epoch_adjusted > lc.time.max().value:
+            print(f"WARNING. The given epoch {epoch} / period is outside of the given lightcurve. No plot is made")
+            return ax
+        # all things checked out, use the new epoch that falls into the given lc.
+        epoch = epoch_adjusted
+
+    duration = a_spec["duration_hr"] / 24
+    window = duration * 3
+    # optional duration_full_hr
+    duration_full_hr = a_spec.get("duration_full_hr")
+    duration_full = duration_full_hr / 24 if duration_full_hr is not None else None
+
+    lc = lc.truncate(epoch - window / 2, epoch + window / 2)
+    ax = lc.scatter(ax=ax)
+    ax.axvline(epoch - duration / 2, c="red")
+    ax.axvline(epoch + duration / 2, c="red", label="transit")
+    if duration_full is not None:
+        ax.axvline(epoch - duration_full / 2, c="red", linestyle="--")
+        ax.axvline(epoch + duration_full / 2, c="red", linestyle="--", label="transit, full")
+
+    # mark epoch; also shows transit depth if it's given
+    epoch_label = f"epoch {a_spec.get('label', '')}"
+    transit_depth_percent = a_spec.get("transit_depth_percent")
+    if transit_depth_percent is not None:
+        # approximation of typical flux outside the transits
+        ymax = np.nanmedian(lc.truncate(None, epoch - duration_full / 2).flux.value)
+        ax.vlines(epoch, ymax=ymax, ymin=ymax - transit_depth_percent / 100,
+            color="blue", linestyle="--", label=f"{epoch_label}, depth:{transit_depth_percent:.2f}%")
+    else:
+        ax.axvline(epoch, ymax=0.15, c="blue", linestyle="--", label=epoch_label)
+    ax.legend()
+    return ax
+
+
 RHO_SUN_CGS = (
     (astropy.constants.M_sun / (4 / 3 * np.pi * astropy.constants.R_sun**3))
     .to(u.g / u.cm**3)
