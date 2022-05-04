@@ -264,11 +264,18 @@ def _stitch_lc_collection(lcc, warn_if_multiple_authors=True):
     return lc
 
 
+def _process_lc_coll(lcc, post_download_process_func):
+    if post_download_process_func is None:
+        return lcc
+    return lk.LightCurveCollection([post_download_process_func(lc) for lc in lcc])
+
+
 def download_lightcurves_by_cadence_type(
     tic,
     sector,
     cadence=["short"],
     author_priority=["SPOC", "TESS-SPOC", "QLP"],
+    post_download_process_func=None,
     download_dir=None,
     return_sr=False,
 ):
@@ -306,6 +313,7 @@ def download_lightcurves_by_cadence_type(
 
     if "short" in cadence:
         lcc_short = sr[sr.exptime == 120 * u.s].download_all(download_dir=download_dir)
+        lcc_short = _process_lc_coll(lcc_short, post_download_process_func)
         lc_short = _stitch_lc_collection(lcc_short, warn_if_multiple_authors=True)
         lc_by_cadence_type["SC"] = lc_short
 
