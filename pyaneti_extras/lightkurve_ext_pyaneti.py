@@ -308,6 +308,7 @@ def download_lightcurves_by_cadence_type(
     lc_by_cadence_type = dict()
     if "fast" in cadence:
         lcc_fast = sr[sr.exptime == 20 * u.s].download_all(download_dir=download_dir)
+        lcc_fast = _process_lc_coll(lcc_fast, post_download_process_func)
         lc_fast = _stitch_lc_collection(lcc_fast, warn_if_multiple_authors=True)
         lc_by_cadence_type["FC"] = lc_fast
 
@@ -319,6 +320,7 @@ def download_lightcurves_by_cadence_type(
 
     if "long" in cadence:
         lcc_long = sr[sr.exptime == 1800 * u.s].download_all(download_dir=download_dir)
+        lcc_long = _process_lc_coll(lcc_long, post_download_process_func)
         lc_long = _stitch_lc_collection(lcc_long, warn_if_multiple_authors=True)
         lc_by_cadence_type["LC"] = lc_long
 
