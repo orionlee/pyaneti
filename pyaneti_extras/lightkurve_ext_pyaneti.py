@@ -981,7 +981,7 @@ class ModelTemplate:
         if self.default_alias_suffix:
             res += f"_{self.default_alias_suffix}"
         # replace space with _ for convenience, as alias is often used as the directory name
-        res = re.sub("\s", "_", res)
+        res = re.sub(r"[\s:/\\]", "_", res)
         return res
 
     @staticmethod
