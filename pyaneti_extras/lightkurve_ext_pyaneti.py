@@ -587,6 +587,10 @@ RHO_SUN_CGS = (
 )
 
 
+def _has_unmasked_value(val):
+    return val is not None and not np.ma.is_masked(val)
+
+
 @cached
 def catalog_info_TIC(tic_id):
     """Takes TIC_ID, returns stellar information from TIC Catalog at MAST"""
@@ -613,7 +617,7 @@ def catalog_info_TIC(tic_id):
 
     # convert Gaia ID from str to preferred int
     gaia_dr2_id_str = result.get("GAIA")
-    if gaia_dr2_id_str is not None:
+    if _has_unmasked_value(gaia_dr2_id_str):
         result["GAIA"] = int(gaia_dr2_id_str)
 
     return result
@@ -703,7 +707,7 @@ def stellar_parameters_of_tic(
 
     meta = catalog_info_TIC(tic)
     gaia_dr2_id = meta.get("GAIA")
-    if also_use_gaia and gaia_dr2_id is not None:
+    if also_use_gaia and _has_unmasked_value(gaia_dr2_id):
         meta_gaia = stellar_parameters_from_gaia(gaia_dr2_id)
         warn_if_significant_diff(meta, meta_gaia, "rad")
         warn_if_significant_diff(meta, meta_gaia, "Teff")
