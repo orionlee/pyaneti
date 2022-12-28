@@ -580,6 +580,35 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
     return ax
 
 
+def bin_flux(lc, columns=["flux", "flux_err"], **kwargs):
+    """Helper to bin() more efficiently."""
+    # Note: the biggest slowdown comes from astropy regression
+    # that this impl cannot address:
+    # https://github.com/astropy/astropy/issues/13058
+
+    # construct a lc_subset that only has a subset of columns,
+    # to minimize the number of columns that need to be binned
+    # see: https://github.com/lightkurve/lightkurve/issues/1191
+
+    # lc_subset = lc['time', 'flux', 'flux_err'] does not work
+    # due to https://github.com/lightkurve/lightkurve/issues/1194
+    lc_subset = type(lc)(time=lc.time.copy())
+    lc_subset.meta.update(lc.meta)
+    for c in columns:
+        if c in lc.colnames:
+            lc_subset[c] = lc[c]
+        else:
+            warnings.warn(f"bin_flux(): column {c} cannot be found in lightcurve. It is ignored.")
+
+
+    return lc_subset.bin(**kwargs)
+
+
+#
+# Helpers to deal with Pyaneti modeling, e.g., 
+# create initial priors, assembling input.py, etc.
+#
+
 RHO_SUN_CGS = (
     (astropy.constants.M_sun / (4 / 3 * np.pi * astropy.constants.R_sun**3))
     .to(u.g / u.cm**3)
