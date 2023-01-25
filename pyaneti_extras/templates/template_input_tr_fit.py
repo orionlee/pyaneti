@@ -141,9 +141,10 @@ max_q2 = {val2_q2}
 #
 
 # If True it creates a correlation plot
-is_plot_correlations = True
+is_plot_correlations = {is_plot_correlations}
+is_plot_chains = {is_plot_chains}
 
-plot_binned_data = True
+plot_binned_data = {plot_binned_data}
 
 tr_xlabel = "{lc_time_label}"
 

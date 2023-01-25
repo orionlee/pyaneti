@@ -915,6 +915,10 @@ def define_mcmc_controls(thin_factor=1, niter=500, nchains=100):
     return dict(mcmc_thin_factor=thin_factor, mcmc_niter=niter, mcmc_nchains=nchains)
 
 
+def define_plot_controls():
+    return dict(is_plot_correlations=True, is_plot_chains=False, plot_binned_data=True)
+
+
 def display_stellar_meta_links(meta, header=None):
     from IPython.display import display, HTML
 
@@ -1078,11 +1082,15 @@ def create_input_fit(
     r_planet_dict,
     a_planet_dict,
     mcmc_controls,
+    plot_controls=None,
     write_to_file=True,
     overwrite_manually_changed_file=False,
     return_content=False,
 ):
     """Output parts of Pyaneti `input_fit.py` based on the specification included"""
+
+    if plot_controls is None:  # use defaults if not specified
+        plot_controls = define_plot_controls()
 
     def set_if_None(map, key, value):
         if map.get(key) is None:
@@ -1351,6 +1359,7 @@ def create_input_fit(
     mapping.update(a_planet_dict)
     mapping.update(impact_parameter)
     mapping.update(mcmc_controls)
+    mapping.update(plot_controls)
     mapping["tic"] = tic
     mapping["alias"] = alias
     mapping["fname_tr"] = pti_env.lc_dat_filename
