@@ -598,14 +598,15 @@ def bin_flux(lc, columns=["flux", "flux_err"], **kwargs):
         if c in lc.colnames:
             lc_subset[c] = lc[c]
         else:
-            warnings.warn(f"bin_flux(): column {c} cannot be found in lightcurve. It is ignored.")
-
+            warnings.warn(
+                f"bin_flux(): column {c} cannot be found in lightcurve. It is ignored."
+            )
 
     return lc_subset.bin(**kwargs)
 
 
 #
-# Helpers to deal with Pyaneti modeling, e.g., 
+# Helpers to deal with Pyaneti modeling, e.g.,
 # create initial priors, assembling input.py, etc.
 #
 
@@ -666,9 +667,9 @@ def stellar_parameters_from_gaia(gaia_dr2_id):
         raise TypeError('gaia_dr2_id must be of type "int"')
 
     def val_and_error_of_param(row, name):
-        key_val = f"{name}_val"
-        key_p_upper = f"{name}_percentile_upper"
-        key_p_lower = f"{name}_percentile_lower"
+        key_val = f"{name}"
+        key_p_upper = f"{name}_upper"
+        key_p_lower = f"{name}_lower"
 
         val = row[key_val]
         if val is not None:
@@ -683,29 +684,34 @@ def stellar_parameters_from_gaia(gaia_dr2_id):
     query = (
         """SELECT
 source_id,
-ra,
-dec,
-teff_val,
-teff_percentile_lower,
-teff_percentile_upper,
-radius_val,
-radius_percentile_lower,
-radius_percentile_upper
-FROM gaiadr2.gaia_source
+teff_gspphot,
+teff_gspphot_lower,
+teff_gspphot_upper,
+radius_gspphot,
+radius_gspphot_lower,
+radius_gspphot_upper,
+mass_flame,
+mass_flame_lower,
+mass_flame_upper
+FROM gaiadr3.astrophysical_parameters
 WHERE source_id=%d"""
         % gaia_dr2_id
     )
 
     result_tab = Gaia.launch_job(query).get_results()
     if len(result_tab) < 1:
+        print(
+            f"Warn cannot find Gaia DR3 data for {gaia_dr2_id}, most likely because the id is changed in DR3."
+        )
         return None
 
     result = {}
 
     row = result_tab[0]
 
-    teff, e_teff = val_and_error_of_param(row, "teff")
-    rad, e_rad = val_and_error_of_param(row, "radius")
+    teff, e_teff = val_and_error_of_param(row, "teff_gspphot")
+    rad, e_rad = val_and_error_of_param(row, "radius_gspphot")
+    mass, e_mass = val_and_error_of_param(row, "mass_flame")
 
     if teff is not None:
         result["Teff"] = teff
@@ -714,6 +720,10 @@ WHERE source_id=%d"""
     if rad is not None:
         result["rad"] = rad
         result["e_rad"] = e_rad
+
+    if mass is not None:
+        result["mass"] = mass
+        result["e_mass"] = e_mass
 
     return result
 
@@ -738,9 +748,11 @@ def stellar_parameters_of_tic(
     gaia_dr2_id = meta.get("GAIA")
     if also_use_gaia and _has_unmasked_value(gaia_dr2_id):
         meta_gaia = stellar_parameters_from_gaia(gaia_dr2_id)
-        warn_if_significant_diff(meta, meta_gaia, "rad")
-        warn_if_significant_diff(meta, meta_gaia, "Teff")
-        meta.update(meta_gaia)
+        if meta_gaia is not None:
+            warn_if_significant_diff(meta, meta_gaia, "rad")
+            warn_if_significant_diff(meta, meta_gaia, "Teff")
+            warn_if_significant_diff(meta, meta_gaia, "mass")
+            meta.update(meta_gaia)
 
     return meta
 
