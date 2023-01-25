@@ -1019,10 +1019,10 @@ class ModelTemplate:
 
         return f"1planet_{orbit_abbrev}_orbit_{fit_abbrev}"
 
-    def default_alias(self, tic) -> str:
+    def default_alias(self, tic, prefix="") -> str:
         orbit_abbrev2 = self._ORBIT_TYPES_ABBREV2[self.orbit_type]
         fit_abbrev = self._FIT_TYPES_ABBREV[self.fit_type]
-        res = f"TIC{tic}_{orbit_abbrev2}_{fit_abbrev}"
+        res = f"{prefix}{tic}_{orbit_abbrev2}_{fit_abbrev}"
         if self.default_alias_suffix:
             res += f"_{self.default_alias_suffix}"
         # replace space with _ for convenience, as alias is often used as the directory name
