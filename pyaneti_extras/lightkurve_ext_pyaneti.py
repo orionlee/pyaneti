@@ -713,17 +713,20 @@ WHERE source_id=%d"""
     rad, e_rad = val_and_error_of_param(row, "radius_gspphot")
     mass, e_mass = val_and_error_of_param(row, "mass_flame")
 
-    if teff is not None:
+    if _has_unmasked_value(teff):
         result["Teff"] = teff
         result["e_Teff"] = e_teff
 
-    if rad is not None:
+    if _has_unmasked_value(rad):
         result["rad"] = rad
         result["e_rad"] = e_rad
 
-    if mass is not None:
+    if _has_unmasked_value(mass):
         result["mass"] = mass
         result["e_mass"] = e_mass
+
+    if len(result) < 1:
+        result = None
 
     return result
 
@@ -1526,10 +1529,15 @@ def save_params_as_txt_file(pti_env):
     shutil.copyfile(file_params, file_params_txt)
 
 
-def copy_input_fit_py_to_out_dir(pti_env):
+def copy_input_fit_py_to_out_dir(pti_env, also_copy_lc_data=True):
     "Copy `input_fit.py` to output directory so that it can be easily shared (on Google Drive)."
     destination = Path(pti_env.target_out_dir, pti_env.input_fit_filename)
     shutil.copyfile(pti_env.input_fit_filepath, destination)
+    if also_copy_lc_data is True:
+        shutil.copyfile(
+            pti_env.lc_dat_filepath,
+            Path(pti_env.target_out_dir, pti_env.lc_dat_filename),
+        )
 
 
 def _char_list_inclusive(c1, c2):
