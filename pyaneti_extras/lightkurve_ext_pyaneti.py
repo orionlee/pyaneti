@@ -687,6 +687,9 @@ source_id,
 teff_gspphot,
 teff_gspphot_lower,
 teff_gspphot_upper,
+logg_gspphot,
+logg_gspphot_lower,
+logg_gspphot_upper,
 radius_gspphot,
 radius_gspphot_lower,
 radius_gspphot_upper,
@@ -712,6 +715,7 @@ WHERE source_id=%d"""
     teff, e_teff = val_and_error_of_param(row, "teff_gspphot")
     rad, e_rad = val_and_error_of_param(row, "radius_gspphot")
     mass, e_mass = val_and_error_of_param(row, "mass_flame")
+    logg, e_logg = val_and_error_of_param(row, "logg_gspphot")
 
     if _has_unmasked_value(teff):
         result["Teff"] = teff
@@ -724,6 +728,10 @@ WHERE source_id=%d"""
     if _has_unmasked_value(mass):
         result["mass"] = mass
         result["e_mass"] = e_mass
+
+    if _has_unmasked_value(logg):
+        result["logg"] = logg
+        result["e_logg"] = e_logg
 
     if len(result) < 1:
         result = None
@@ -755,6 +763,7 @@ def stellar_parameters_of_tic(
             warn_if_significant_diff(meta, meta_gaia, "rad")
             warn_if_significant_diff(meta, meta_gaia, "Teff")
             warn_if_significant_diff(meta, meta_gaia, "mass")
+            warn_if_significant_diff(meta, meta_gaia, "logg")
             meta.update(meta_gaia)
 
     return meta
