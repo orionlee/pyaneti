@@ -755,7 +755,10 @@ def stellar_parameters_of_tic(
                     f"Significant difference (> {diff_warning_threshold_percent}%) in {param_name} . MAST: {val_mast} ; Gaia DR2: {val_gaia}"
                 )
 
-    meta = catalog_info_TIC(tic)
+    # we need a copy because catalog_info_TIC() result is cached
+    # we do not want our modification below from Gaia polluting catalog_info_TIC() return values
+    meta = catalog_info_TIC(tic).copy()
+
     gaia_dr2_id = meta.get("GAIA")
     if also_use_gaia and _has_unmasked_value(gaia_dr2_id):
         meta_gaia = stellar_parameters_from_gaia(gaia_dr2_id)
