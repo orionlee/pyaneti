@@ -817,8 +817,16 @@ def get_limb_darkening_params(Teff, logg):
     return dict(q1=q1, e_q1=e_q1, q2=q2, e_q2=e_q2, u1=u1, e_u1=e_u1, u2=u2, e_u2=e_u2)
 
 
+def _is_arraylike(val):
+    return isinstance(val, (list, Sequence, np.ndarray, np.ma.core.MaskedArray))
+
+
+def _is_arraylike_of_length(val, len_expected):
+    return _is_arraylike(val) and len(val) == len_expected
+
+
 def _is_arraylike_with_None_or_Masked(val):
-    if not isinstance(val, (Sequence, np.ma.core.MaskedArray)):
+    if not _is_arraylike(val):
         return False
     return np.ma.is_masked(val) or (np.asarray(val) == None).any()
 
@@ -1092,8 +1100,32 @@ def create_input_fit(
 ):
     """Output parts of Pyaneti `input_fit.py` based on the specification included"""
 
+    # applying defaults
     if plot_controls is None:  # use defaults if not specified
         plot_controls = define_plot_controls()
+
+    # Input Validation
+    num_planets = len(transit_specs)  # also used later in processing
+    if num_planets < 1:
+        raise ValueError("transit_specs must be non-empty")
+
+    def are_values_all_array_like_of_length(a_dict, len_expected):
+        for val in a_dict.values():
+            if not _is_arraylike_of_length(val, len_expected):
+                return False
+        return True
+
+    if not are_values_all_array_like_of_length(r_planet_dict, num_planets):
+        raise ValueError(
+            f"r_planet_dict 's values must be an array of length {num_planets}. Actual: {r_planet_dict}"
+        )
+
+    if not are_values_all_array_like_of_length(a_planet_dict, num_planets):
+        raise ValueError(
+            f"a_planet_dict 's values must be an array of length {num_planets}. Actual: {a_planet_dict}"
+        )
+
+    # Misc helpers for main logic
 
     def set_if_None(map, key, value):
         if map.get(key) is None:
@@ -1368,7 +1400,6 @@ def create_input_fit(
     mapping["fname_tr"] = pti_env.lc_dat_filename
 
     # Per-planet processing
-    num_planets = len(transit_specs)
     mapping["nplanets"] = num_planets
     mapping["fit_tr"] = repeat(True, repeat_n=num_planets)
     add_dummy_rvs_params(mapping, num_planets)
