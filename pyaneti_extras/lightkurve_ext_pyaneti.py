@@ -772,13 +772,17 @@ def stellar_parameters_of_tic(
     return meta
 
 
-def get_limb_darkening_params(Teff, logg):
+def get_limb_darkening_params(Teff, logg, error_factor=1):
     """Estimate Limb Darkening Quadratic Coefficients for TESS.
     The data is from
     [Claret et al. (2017)](https://ui.adsabs.harvard.edu/abs/2017A%26A...600A..30C/abstract),
     specifically, the subset of model `PHOENIX-COND`, 	quasi-spherical type `q`.
     The original data is hosted at:
     https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=J/A%2bA/600/A30/tableab
+
+    error_factor: the default error is an arbitrary 1/3 of the value,
+    supply a factor to scale it linear, e.g., if error_factor=2, the error would be 2/3
+    (2 * 1/3) of the value.
     """
     # Logic derived from:
     # https://github.com/hippke/tls/blob/v1.0.31/transitleastsquares/catalog.py
@@ -821,10 +825,10 @@ def get_limb_darkening_params(Teff, logg):
 
     # Provide a rough guess on error for u1/u2/q1/q2
     # it's a rough heuristics that tried to be conservation (i.e, erred to be larger than actual)
-    e_u1 = np.ceil(u1 * 0.33 * 100) / 100
-    e_u2 = np.ceil(u2 * 0.33 * 100) / 100
-    e_q1 = np.ceil(q1 * 0.33 * 100) / 100
-    e_q2 = np.ceil(q2 * 0.33 * 100) / 100
+    e_u1 = np.ceil(u1 * error_factor * 0.33 * 100) / 100
+    e_u2 = np.ceil(u2 * error_factor * 0.33 * 100) / 100
+    e_q1 = np.ceil(q1 * error_factor * 0.33 * 100) / 100
+    e_q2 = np.ceil(q2 * error_factor * 0.33 * 100) / 100
 
     return dict(q1=q1, e_q1=e_q1, q2=q2, e_q2=e_q2, u1=u1, e_u1=e_u1, u2=u2, e_u2=e_u2)
 
@@ -931,7 +935,7 @@ def estimate_orbital_distance_in_r_star(
 
 
 def define_impact_parameter():
-    return dict(min_b=0.0, max_b=1.0)
+    return dict(min_b=0.0, max_b=1.15)
 
 
 def define_mcmc_controls(thin_factor=1, niter=500, nchains=100):
