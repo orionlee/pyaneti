@@ -765,7 +765,7 @@ WHERE source_id=%d"""
 
 
 def stellar_parameters_of_tic(
-    tic, also_use_gaia=True, diff_warning_threshold_percent=10
+    tic, also_use_gaia=True, gaia_dr3_id=None, diff_warning_threshold_percent=10
 ):
     """Obtain stellar parameters from MAST, and optionally from Gaia as well."""
 
@@ -784,15 +784,29 @@ def stellar_parameters_of_tic(
     # we do not want our modification below from Gaia polluting catalog_info_TIC() return values
     meta = catalog_info_TIC(tic).copy()
 
-    gaia_dr2_id = meta.get("GAIA")
-    if also_use_gaia and _has_unmasked_value(gaia_dr2_id):
-        meta_gaia = stellar_parameters_from_gaia(gaia_dr2_id)
-        if meta_gaia is not None:
-            warn_if_significant_diff(meta, meta_gaia, "rad")
-            warn_if_significant_diff(meta, meta_gaia, "Teff")
-            warn_if_significant_diff(meta, meta_gaia, "mass")
-            warn_if_significant_diff(meta, meta_gaia, "logg")
-            meta.update(meta_gaia)
+    if also_use_gaia:
+        if gaia_dr3_id is None:
+            # it is really Gaia DR2 ID
+            # we cheat and use it to query Gaia DR3, which usually works
+            # if it does not, users can override by supplying the correct gaia_dr3_id
+            gaia_dr3_id = meta.get("GAIA")
+        if _has_unmasked_value(gaia_dr3_id):
+            meta_gaia = stellar_parameters_from_gaia(gaia_dr3_id)
+            if meta_gaia is not None:
+                warn_if_significant_diff(meta, meta_gaia, "rad")
+                warn_if_significant_diff(meta, meta_gaia, "Teff")
+                warn_if_significant_diff(meta, meta_gaia, "mass")
+                warn_if_significant_diff(meta, meta_gaia, "logg")
+                meta.update(meta_gaia)
+                meta["gaia_dr3_id"] = gaia_dr3_id  # for diagnosis usage
+            else:
+                warnings.warn(
+                    f"Gaia DR3 {gaia_dr3_id} has no relevant stellar parameters. Use TIC stellar parameters only."
+                )
+        else:
+            warnings.warn(
+                f"Gaia data requested but there is no known Gaia DR3 source id. Use TIC stellar parameters only."
+            )
 
     return meta
 
