@@ -1648,7 +1648,7 @@ def display_model(
     show_lightcurve=True,
     show_chains=False,
 ):
-    from IPython.display import display, Image, HTML
+    from IPython.display import display, Image, HTML, Markdown
 
     def _show_image(img_path):
         if img_path.exists():
@@ -1680,6 +1680,17 @@ def display_model(
 """
             )
         )
+        if template.fit_type == "single_transit":
+            display(
+                Markdown(
+                    """
+Single transit mode used. Note:
+- ignore fitted `P`, `a/R*`, derived `rho*`, `Insolation`, `Teq` (all tied to useless fitted `P`)
+- circular orbit period is derived in part from input stellar density (via `M_*` and `R_*` )
+- input prior for `P` and `a/R*` are ignored.
+            """
+                )
+            )
 
     if show_posterior:
         _show_image(Path(target_out_dir, f"{alias}_posterior.png"))
