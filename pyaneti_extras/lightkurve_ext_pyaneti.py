@@ -499,10 +499,12 @@ def scatter_by_band(lc, **kwargs):
     return ax
 
 
-def plot_transit_at_epoch(lc, a_spec, ax=None):
+def plot_transit_at_epoch(lc, a_spec, ax=None, plot_fold=True, label_suffix="", plot_kwargs={}):
     """Plot the transit at the epoch of the given transit spec.
-    It is used to visualize and valide the transit spec parameters.
-    Period is not covered as the plot is zoomed into the specified epoch.
+    It is used to visualize and validate the transit spec parameters.
+
+    If plot_fold is False, the plot is zoomed to the specified epoch.
+    If plot_fold is True, the lightcurve is folded to before plot, i.e., covering all data.
     """
     epoch = a_spec["epoch"]
     if epoch < lc.time.min().value or epoch > lc.time.max().value:
@@ -535,9 +537,18 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
     duration_full_hr = a_spec.get("duration_full_hr")
     duration_full = duration_full_hr / 24 if duration_full_hr is not None else None
 
-    lc = lc.truncate(epoch - window / 2, epoch + window / 2)
-    lc.meta["LABEL"] = lc.meta.get("LABEL") + " " + a_spec.get("label", "")
-    ax = lc.scatter(ax=ax)
+    if plot_fold:
+        period = a_spec["period"]
+        lc = lc.fold(epoch_time=epoch, period=period)
+        lc = lc.truncate(-window / 2, window / 2)
+        epoch = 0  # in folded plot, epoch is at time 0. hacky
+    else:
+        lc = lc.truncate(epoch - window / 2, epoch + window / 2)
+
+    lc.meta["LABEL"] = (
+        lc.meta.get("LABEL") + " " + a_spec.get("label", "") + label_suffix
+    )
+    ax = lc.scatter(ax=ax, **plot_kwargs)
     ax.axvline(epoch - duration / 2, c="red")
     ax.axvline(epoch + duration / 2, c="red", label="transit")
     if duration_full is not None:
@@ -576,8 +587,14 @@ def plot_transit_at_epoch(lc, a_spec, ax=None):
         )
     else:
         ax.axvline(epoch, ymax=0.15, c="blue", linestyle="--", label=epoch_label)
-    ax.legend()
+    ax.legend(loc="lower right")
     return ax
+
+
+def get_planet_label(transit_spec_idx):
+    """Convert the 0-based index in `transit_specs` to the correspond planet labels (b, c, d,..)"""
+    pl_labels = ["b", "c", "d", "e", "f", "g", "h", "i", "j", "l", "m"]
+    return pl_labels[transit_spec_idx]
 
 
 def bin_flux(lc, columns=["flux", "flux_err"], **kwargs):
