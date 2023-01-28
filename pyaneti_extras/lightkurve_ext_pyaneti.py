@@ -326,9 +326,16 @@ def download_lightcurves_by_cadence_type(
     if "short" in cadence:
         download_process_stitch(sr[sr.exptime == 120 * u.s], "SC")
     if "long" in cadence:
-        download_process_stitch(sr[sr.exptime == 1800 * u.s], "LC")
-        # TODO: handle 10 minute cadence, and warn only if both LC and LC10m has no data
-        # download_process_stitch(sr[sr.exptime == 600 * u.s], "LC10m")
+        has_30min = download_process_stitch(
+            sr[sr.exptime == 1800 * u.s], "LC", warn_if_no_data=False
+        )
+        has_10min = download_process_stitch(
+            sr[sr.exptime == 600 * u.s], "LC10m", warn_if_no_data=False
+        )
+        if not has_10min and not has_30min:
+            warnings.warn(
+                "Cadence type long requested, but there is no data (either 30min or 10min cadence)."
+            )
 
     if return_sr:
         return lc_by_cadence_type, sr_all
