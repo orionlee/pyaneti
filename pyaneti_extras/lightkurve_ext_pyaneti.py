@@ -306,23 +306,29 @@ def download_lightcurves_by_cadence_type(
         sr = sr[np.in1d(sr.table["sequence_number"], sector)]
 
     lc_by_cadence_type = dict()
+
+    def download_process_stitch(sr_subset, cadence_type_key, warn_if_no_data=True):
+        if len(sr_subset) < 1:
+            if warn_if_no_data:
+                warnings.warn(
+                    f"Cadence type {cadence_type_key} requested, but there is no data"
+                )
+            return False
+
+        lcc = sr_subset.download_all(download_dir=download_dir)
+        lcc = _process_lc_coll(lcc, post_download_process_func)
+        lc = _stitch_lc_collection(lcc, warn_if_multiple_authors=True)
+        lc_by_cadence_type[cadence_type_key] = lc
+        return True
+
     if "fast" in cadence:
-        lcc_fast = sr[sr.exptime == 20 * u.s].download_all(download_dir=download_dir)
-        lcc_fast = _process_lc_coll(lcc_fast, post_download_process_func)
-        lc_fast = _stitch_lc_collection(lcc_fast, warn_if_multiple_authors=True)
-        lc_by_cadence_type["FC"] = lc_fast
-
+        download_process_stitch(sr[sr.exptime == 20 * u.s], "FC")
     if "short" in cadence:
-        lcc_short = sr[sr.exptime == 120 * u.s].download_all(download_dir=download_dir)
-        lcc_short = _process_lc_coll(lcc_short, post_download_process_func)
-        lc_short = _stitch_lc_collection(lcc_short, warn_if_multiple_authors=True)
-        lc_by_cadence_type["SC"] = lc_short
-
+        download_process_stitch(sr[sr.exptime == 120 * u.s], "SC")
     if "long" in cadence:
-        lcc_long = sr[sr.exptime == 1800 * u.s].download_all(download_dir=download_dir)
-        lcc_long = _process_lc_coll(lcc_long, post_download_process_func)
-        lc_long = _stitch_lc_collection(lcc_long, warn_if_multiple_authors=True)
-        lc_by_cadence_type["LC"] = lc_long
+        download_process_stitch(sr[sr.exptime == 1800 * u.s], "LC")
+        # TODO: handle 10 minute cadence, and warn only if both LC and LC10m has no data
+        # download_process_stitch(sr[sr.exptime == 600 * u.s], "LC10m")
 
     if return_sr:
         return lc_by_cadence_type, sr_all
@@ -499,7 +505,9 @@ def scatter_by_band(lc, **kwargs):
     return ax
 
 
-def plot_transit_at_epoch(lc, a_spec, ax=None, plot_fold=True, label_suffix="", plot_kwargs={}):
+def plot_transit_at_epoch(
+    lc, a_spec, ax=None, plot_fold=True, label_suffix="", plot_kwargs={}
+):
     """Plot the transit at the epoch of the given transit spec.
     It is used to visualize and validate the transit spec parameters.
 
