@@ -943,6 +943,7 @@ def estimate_orbital_distance_in_r_star(
     periods,
     transits_duration_hr_total,
     transits_duration_hr_full,
+    periods_min_max=None,  # optional, in the forms of [min_periods, max_periods]
 ):
     if (
         _is_None_or_is_arraylike_with_None_or_Masked(transits_depth_percent)
@@ -964,19 +965,39 @@ def estimate_orbital_distance_in_r_star(
     transits_duration_total = np.asarray(transits_duration_hr_total) / 24
     transits_duration_full = np.asarray(transits_duration_hr_full) / 24
 
-    # based on equation (1.10) in Odunlade 2010 (PhD Thesis)
-    # https://www.astro.ex.ac.uk/people/alapini/Publications/PhD_chap1.pdf
-    # which is in turn based on Seager & Mallén-Ornelas (2003)
-    # https://ui.adsabs.harvard.edu/abs/2003ApJ...585.1038S/abstract
-    a = (periods * 2 / np.pi) * (
-        transits_depth**0.25
-        / (transits_duration_total**2 - transits_duration_full**2) ** 0.5
-    )
+    def estimate_a_for(periods):
+        # based on equation (1.10) in Odunlade 2010 (PhD Thesis)
+        # https://www.astro.ex.ac.uk/people/alapini/Publications/PhD_chap1.pdf
+        # which is in turn based on Seager & Mallén-Ornelas (2003)
+        # https://ui.adsabs.harvard.edu/abs/2003ApJ...585.1038S/abstract
+        return (periods * 2 / np.pi) * (
+            transits_depth**0.25
+            / (transits_duration_total**2 - transits_duration_full**2) ** 0.5
+        )
+
+    a = estimate_a_for(periods)
+
+    min_a = a * 0.1
+    max_a = a * 10
+
+    # estimate min/max based on min_period / max_period
+    # if the user supplies one
+    if (
+        periods_min_max is not None
+        and len(periods_min_max) > 0
+        # users might supply None values in the form of [ [None], [None] ] (for simplicity in their codes),
+        # here we test one of values is not None, and assume if one of values is not None, the rest is not None either.
+        and periods_min_max[0][0] is not None
+    ):
+        min_a = estimate_a_for(np.asarray(periods_min_max[0]))
+        min_a *= 0.8  # give some extra leeway
+        max_a = estimate_a_for(np.asarray(periods_min_max[1]))
+        max_a *= 1.1  # give some extra leeway, max_a tends to be large already, some extra leeway is smaller in fraction
 
     return dict(
         a=a,
-        min_a=a * 0.1,
-        max_a=a * 10,
+        min_a=min_a,
+        max_a=max_a,
     )
 
 
