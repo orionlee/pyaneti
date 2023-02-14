@@ -777,7 +777,7 @@ def stellar_parameters_of_tic(
     """Obtain stellar parameters from MAST, and optionally from Gaia as well."""
 
     def warn_if_significant_diff(meta_mast, meta_gaia, param_name):
-        val_mast, val_gaia = meta_mast[param_name], meta_gaia[param_name]
+        val_mast, val_gaia = meta_mast.get(param_name), meta_gaia.get(param_name)
         if val_mast is not None and val_gaia is not None:
             if (
                 abs(val_mast - val_gaia) / val_mast
