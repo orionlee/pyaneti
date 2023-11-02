@@ -126,6 +126,9 @@ except TypeError:
 # If True  pyaneti will fit a planet radius for EACH band, this might be useful to check if the planet radius is consistent within all bands
 is_multi_radius = {is_multi_radius}
 
+#Set this true for multi-band (otherwise the transit plot only shows 1 band)
+is_jitter_tr = {is_jitter_tr}
+
 # limb darkening parameters per Kipping (2013), one for each band,
 # as it depends on both the stellar parameters and the telescope (hence the band)
 fit_q1 = {type_q1}

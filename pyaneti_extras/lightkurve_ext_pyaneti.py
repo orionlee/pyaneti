@@ -1415,6 +1415,12 @@ def create_input_fit(
         # if users have specified is_multi_radius a priori, we honor their choice
         set_if_None(map, "is_multi_radius", is_multi_radius)
 
+        # for data with multi band, is_jitter_tr should be True so that
+        # Pyaneti's transit plots would contain data from all bands
+        is_jitter_tr = True if len(lc_or_lc_by_band) > 1 else False
+        # if users have specified is_jitter_tr a priori, we still honor their choice
+        set_if_None(map, "is_jitter_tr", is_jitter_tr)
+
         return num_bands
 
     def add_dummy_rvs_params(map, num_planets):
