@@ -293,6 +293,9 @@ def download_lightcurves_by_cadence_type(
         lk.search.sr_cache.cache_dir = download_dir
 
     sr_all = lk.search_lightcurve(f"TIC{tic}", mission="TESS")
+    if "dataURL" not in sr_all.table.columns:
+        warnings.warn("search_lightcurve(): MAST search result has no dataURL . Use dataURI instead.")
+        sr_all.table["dataURL"] = sr_all.table["dataURI"]  # workaround MAST issue
 
     exptime_priority = ["fast", "short", "long"]
     # the subset users specified
