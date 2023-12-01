@@ -17,6 +17,7 @@ import warnings
 # as lightkurve has already depends on it.
 from memoization import cached
 
+import astropy
 import astropy.constants
 from astropy.table import Table
 from astropy.time import Time
@@ -1761,3 +1762,76 @@ def read_pyaneti_lc_dat(filename, time_format="btjd", time_converter_func=None):
     if time.format == "btjd":
         lc_cls = lk.TessLightCurve
     return lc_cls(time=time, flux=flux, flux_err=flux_err)
+
+
+#
+# Useful helpers but not essential to creating the model
+#
+
+
+# Copied from:
+# https://github.com/orionlee/PH_TESS_I_LightCurveViewer/blob/f1d8061931126b276dba3fcc954b72905385ddf2/lightkurve_ext.py#L913
+#    
+def estimate_transit_duration_for_circular_orbit(period, rho, b):
+    """Estimate the transit duration for circular orbit, T_circ.
+    Usage: if the observed transit duration, T_obs,
+    Case 1. T_obs < T_circ significantly: the planet candidate is potentially
+    - Case 1a:
+      - in a highly eccentric orbit, and
+      - the transit occurs near periastron (nearest point to the host star)
+        - the planet moves faster, thus the duration is shorter, figure 1 orange line
+    - Case 1b:
+      - actual impact parameter b is higher than the estimate
+        - higher b implies the planet traverses across less of the host star's cross section
+    - the uncertainty is manifestation of e-w-b degeneracy.
+
+    Case 2. T_obs > T_circ significantly: the planet candidate is almost definitely
+    - in a highly eccentric orbit, and
+    - the transit occurs near apastron (farthest point to the host star)
+      - the planet moves slower, thus the duration is longer, figure 1 green line
+
+    cf. The TESS–Keck Survey. VI. Two Eccentric Sub-Neptunes Orbiting HIP-97166, MacDougall et. al
+    https://ui.adsabs.harvard.edu/abs/2021AJ....162..265M/abstract
+
+    - implementing the equations in section 2.2
+    - see figure 1 for the concept, and section 2.2 for interpreting the result
+    """
+    if isinstance(b, (list, tuple, np.ndarray)):
+        if len(b) == 2:  # in (mean, error) form
+            b_mean = b[0]
+            b_lower = b[0] - b[1]
+            b_upper = b[0] + b[1]
+        elif len(b) == 3:  # in (mean, lower error, upper error) form
+            b_mean = b[0]
+            b_lower = b[0] - b[1]
+            b_upper = b[0] + b[2]
+        else:
+            raise ValueError("b must be a scalar, (mean, error), or (mean, lower_error, upper_error)")
+        d_mean = estimate_transit_duration_for_circular_orbit(period, rho, b_mean)
+        # lower b would lead to higher duration
+        d_upper = estimate_transit_duration_for_circular_orbit(period, rho, b_lower)
+        d_lower = estimate_transit_duration_for_circular_orbit(period, rho, b_upper)
+
+        return np.array([d_mean.value, d_lower.value, d_upper.value]) * d_mean.unit
+
+    # case b is a single scalar, do the actual calc
+
+    # use default units if the input is not quantity
+    if not isinstance(period, u.Quantity):
+        period = period * u.day
+
+    if not isinstance(rho, u.Quantity):
+        rho = rho * u.gram / u.cm**3
+
+    # implement eq. 1, 2, and 3
+    return (
+        period ** (1 / 3)
+        * rho ** (-1 / 3)
+        * (1 - b**2) ** (1 / 2)
+        *
+        # constants that are not explicitly stated in eq 3, but can be derived from eq 1 and 2
+        np.pi ** (-2 / 3)
+        * 3 ** (1 / 3)
+        * astropy.constants.G ** (-1 / 3)
+    ).to(u.hour)
+
