@@ -442,7 +442,7 @@ def create_transit_mask(
     return mask
 
 
-def _truncate_lc_to_around_transits(lc, transit_specs):
+def _truncate_lc_to_around_transits(lc, transit_specs, include_start_stop=True):
     if transit_specs is None:
         return lc
 
@@ -455,19 +455,24 @@ def _truncate_lc_to_around_transits(lc, transit_specs):
         include_surround_time=True,
         default_surround_time_func=lambda duration: duration * 2,
     )
+    if include_start_stop:
+        # include the first and last data poins in the truncated LC,
+        # which would be helpful later on plotting the model LC against full actual lightcurve
+        mask[0] = True
+        mask[-1] = True
 
     return lc[mask]
 
 
-def _merge_and_truncate_lcs(lc_or_lc_by_band, transit_specs):
+def _merge_and_truncate_lcs(lc_or_lc_by_band, transit_specs, include_start_stop=True):
     if isinstance(lc_or_lc_by_band, lk.LightCurve):
-        return _truncate_lc_to_around_transits(lc_or_lc_by_band, transit_specs)
+        return _truncate_lc_to_around_transits(lc_or_lc_by_band, transit_specs, include_start_stop)
     # if it's a dictionary of lcs,
     # - truncate and stitch with an added `band` column indicating the source for each row
     #   (short cadence vs long cadence in typical TESS Transit model case)
     lc_trunc_by_band = dict()
     for band, lc_trunc in lc_or_lc_by_band.items():
-        lc_trunc = _truncate_lc_to_around_transits(lc_trunc, transit_specs)
+        lc_trunc = _truncate_lc_to_around_transits(lc_trunc, transit_specs, include_start_stop)
         lc_trunc["band"] = [band] * len(lc_trunc)
         lc_trunc_by_band[band] = lc_trunc
 
@@ -479,11 +484,11 @@ def _merge_and_truncate_lcs(lc_or_lc_by_band, transit_specs):
 
 
 def to_pyaneti_dat(
-    lc_or_lc_by_band, transit_specs, pyaneti_env, return_processed_lc=False
+    lc_or_lc_by_band, transit_specs, pyaneti_env, include_start_stop=True, return_processed_lc=False
 ):
     "Output lc data to a file readable by Pyaneti, with lc pre-processed to be suitable for Pyaneti modeling"
     lc_trunc, lc_trunc_by_band = _merge_and_truncate_lcs(
-        lc_or_lc_by_band, transit_specs
+        lc_or_lc_by_band, transit_specs, include_start_stop
     )
 
     out_path = pyaneti_env.lc_dat_filepath
@@ -1086,7 +1091,7 @@ def estimate_planet_radius_in_r_star(r_star, depth_percent):
     r_planet_in_r_star = r_planet / r_star
 
     # Provide some rough min / max estimate
-    min_r_planet_in_r_star = np.zeros_like(depth)
+    min_r_planet_in_r_star = np.zeros_like(depth) + 0.0001
     # a rough guess for max: 2 times of the above estimate, capped to the size of 2.5 R_jupiter
     max_r_planet_in_r_star = np.full_like(depth, 2.5 * R_JUPITER_IN_R_SUN / r_star)
     max_r_planet_in_r_star = np.minimum(r_planet_in_r_star * 2, max_r_planet_in_r_star)
