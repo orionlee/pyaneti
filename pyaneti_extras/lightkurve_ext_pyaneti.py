@@ -854,7 +854,7 @@ def catalog_info_TIC(tic_id):
 
 
 @cached
-def stellar_parameters_from_gaia(gaia_dr2_id):
+def stellar_parameters_from_gaia(gaia_dr2_id, radius_src="flame", diff_warning_threshold_percent=10):
     try:
         from astroquery.gaia import Gaia
     except:
@@ -893,6 +893,9 @@ logg_gspphot_upper,
 radius_gspphot,
 radius_gspphot_lower,
 radius_gspphot_upper,
+radius_flame,
+radius_flame_lower,
+radius_flame_upper,
 mass_flame,
 mass_flame_lower,
 mass_flame_upper
@@ -913,7 +916,12 @@ WHERE source_id=%d"""
     row = result_tab[0]
 
     teff, e_teff = val_and_error_of_param(row, "teff_gspphot")
-    rad, e_rad = val_and_error_of_param(row, "radius_gspphot")
+    radius_src_types = ["flame", "gspphot"]
+    if radius_src in radius_src_types:
+        radius_colname = f"radius_{radius_src}"
+    else:
+        raise ValueError(f'radius_src must be one of {radius_src_types}. Actual: {radius_src}')
+    rad, e_rad = val_and_error_of_param(row, radius_colname)
     mass, e_mass = val_and_error_of_param(row, "mass_flame")
     logg, e_logg = val_and_error_of_param(row, "logg_gspphot")
 
@@ -936,11 +944,26 @@ WHERE source_id=%d"""
     if len(result) < 1:
         result = None
 
+
+    # emit warning if there is significant difference between FLAME and GSPPhot radius
+    rad_flame, _ = val_and_error_of_param(row, "radius_flame")
+    rad_gspphot, _ = val_and_error_of_param(row, "radius_gspphot")
+
+    if _has_unmasked_value(rad_flame) and _has_unmasked_value(rad_gspphot):
+        if (
+            abs(rad_flame - rad_gspphot) / min(rad_flame, rad_gspphot)
+            > diff_warning_threshold_percent / 100
+        ):
+            warnings.warn(
+                f"Significant difference (> {diff_warning_threshold_percent}%) in Gaia Radius. FLAME: {rad_flame} ; GSPPhot: {rad_gspphot} ."
+                f" Radius used: {radius_src}."
+            )
+
     return result
 
 
 def stellar_parameters_of_tic(
-    tic, also_use_gaia=True, gaia_dr3_id=None, diff_warning_threshold_percent=10
+    tic, also_use_gaia=True, gaia_dr3_id=None, gaia_dr3_radius_src="flame", diff_warning_threshold_percent=10
 ):
     """Obtain stellar parameters from MAST, and optionally from Gaia as well."""
 
@@ -948,11 +971,11 @@ def stellar_parameters_of_tic(
         val_mast, val_gaia = meta_mast.get(param_name), meta_gaia.get(param_name)
         if val_mast is not None and val_gaia is not None:
             if (
-                abs(val_mast - val_gaia) / val_mast
+                abs(val_mast - val_gaia) / min(val_mast, val_gaia)
                 > diff_warning_threshold_percent / 100
             ):
                 warnings.warn(
-                    f"Significant difference (> {diff_warning_threshold_percent}%) in {param_name} . MAST: {val_mast} ; Gaia DR2: {val_gaia}"
+                    f"Significant difference (> {diff_warning_threshold_percent}%) in {param_name} . MAST: {val_mast} ; Gaia DR3: {val_gaia}"
                 )
 
     # we need a copy because catalog_info_TIC() result is cached
@@ -966,7 +989,7 @@ def stellar_parameters_of_tic(
             # if it does not, users can override by supplying the correct gaia_dr3_id
             gaia_dr3_id = meta.get("GAIA")
         if _has_unmasked_value(gaia_dr3_id):
-            meta_gaia = stellar_parameters_from_gaia(gaia_dr3_id)
+            meta_gaia = stellar_parameters_from_gaia(gaia_dr3_id, radius_src=gaia_dr3_radius_src, diff_warning_threshold_percent=diff_warning_threshold_percent)
             if meta_gaia is not None:
                 warn_if_significant_diff(meta, meta_gaia, "rad")
                 warn_if_significant_diff(meta, meta_gaia, "Teff")
@@ -1935,7 +1958,7 @@ def read_pyaneti_lc_dat(filename, time_format="btjd", time_converter_func=None):
 
 # Copied from:
 # https://github.com/orionlee/PH_TESS_I_LightCurveViewer/blob/f1d8061931126b276dba3fcc954b72905385ddf2/lightkurve_ext.py#L913
-#    
+#
 def estimate_transit_duration_for_circular_orbit(period, rho, b):
     """Estimate the transit duration for circular orbit, T_circ.
     Usage: if the observed transit duration, T_obs,
