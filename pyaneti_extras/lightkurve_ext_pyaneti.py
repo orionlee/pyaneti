@@ -608,6 +608,10 @@ def plot_transit_at_epoch(
     else:
         lc = lc.truncate(epoch - window / 2, epoch + window / 2)
 
+    if len(lc) < 1:
+        print(f"DEBUG. No data around the given epoch {epoch}. No plot is made")
+        return None
+
     lc.meta["LABEL"] = (
         lc.meta.get("LABEL") + " " + a_spec.get("label", "") + label_suffix
     )
@@ -2057,4 +2061,3 @@ def estimate_transit_duration_for_circular_orbit(period, rho, b):
         * 3 ** (1 / 3)
         * astropy.constants.G ** (-1 / 3)
     ).to(u.hour)
-
