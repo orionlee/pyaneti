@@ -1408,6 +1408,7 @@ def create_input_fit(
     a_planet_dict,
     mcmc_controls,
     plot_controls=None,
+    extras_text=None,
     write_to_file=True,
     overwrite_manually_changed_file=False,
     return_content=False,
@@ -1785,6 +1786,11 @@ def create_input_fit(
         warnings.warn(
             "create_input_fit(): the created `input_fit.py` still has values not yet defined."
         )
+    if extras_text is not None:
+        # optional arbitary config to be appended to input_fit.py
+        result += "\n# Extra config outside of the template\n"
+        result += extras_text
+        result += "\n"
 
     input_fit_filepath = pti_env.input_fit_filepath
     if write_to_file:
