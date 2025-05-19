@@ -1905,6 +1905,7 @@ def _char_list_inclusive(c1, c2):
 def display_model(
     pti_env,
     template,
+    planets_suffix_list=None,
     show_params=True,
     show_posterior=True,
     show_correlations=False,
@@ -1961,9 +1962,11 @@ Single transit mode used. Note:
     if show_correlations:
         _show_image(Path(target_out_dir, f"{alias}_correlations.png"))
     if show_transits:
-        planets_suffix = _char_list_inclusive("b", "z")
-        planets_suffix = planets_suffix[: template.num_planets]
-        for suffix in planets_suffix:
+        if planets_suffix_list is None:
+            planets_suffix_list = _char_list_inclusive("b", "z")
+        # else users override the default suffix list in `input_fit.py`, we take the value from users
+        planets_suffix_list = planets_suffix_list[: template.num_planets]
+        for suffix in planets_suffix_list:
             display(HTML(f"""<h5 style="text-align: center;">Planet {suffix}:</h5>"""))
             _show_image(Path(target_out_dir, f"{alias}{suffix}_tr.png"))
     if show_lightcurve:
