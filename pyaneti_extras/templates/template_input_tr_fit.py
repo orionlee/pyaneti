@@ -90,7 +90,7 @@ max_b = {val2_b}
 
 # use ew1 and ew2, polar form of e and w, to parametrize them.
 # they'd be better sampled for small eccentricities
-# see: https://github.com/oscaribv/pyaneti/wiki/Parametrizations#limb-darkening-coefficients
+# see: https://github.com/oscaribv/pyaneti/wiki/Parametrizations#eccentricity-and-angle-of-periastron
 # for case both ew1 and ew2 are both uniform priors, they are equivalent to uniform priors for e
 is_ew = True
 fit_ew1 = {type_ew}
