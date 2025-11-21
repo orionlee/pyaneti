@@ -195,7 +195,7 @@ def html_a_of_file(file_url, a_text, target="_blank", is_dir=False):
 
 
 def _map_cadence_type(cadence_in_days):
-    long_minimum = 6 / 60 / 24  # 6 minutes cutoff is somewhat arbitrary.
+    long_minimum = 199 / 60 / 60 / 24 #  200sec FFI, set it to 199s to leave some margin of error
     short_minimum = 0.9 / 60 / 24  # 1 minute in days, with some margin of error
     if cadence_in_days is None:
         return None
@@ -375,9 +375,12 @@ def download_lightcurves_by_cadence_type(
         has_10min = download_process_stitch(
             sr[sr.exptime == 600 * u.s], "LC10m", warn_if_no_data=False
         )
-        if not has_10min and not has_30min:
+        has_200sec = download_process_stitch(
+            sr[sr.exptime == 200 * u.s], "LC200s", warn_if_no_data=False
+        )
+        if not has_10min and not has_30min and not has_200sec:
             warnings.warn(
-                "Cadence type long requested, but there is no data (either 30min or 10min cadence)."
+                "Cadence type long requested, but there is no data (30min, 10min, or 200sec cadence)."
             )
 
     if return_sr:
