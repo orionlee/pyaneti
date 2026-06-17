@@ -271,7 +271,9 @@ def _stitch_lc_collection(lcc, warn_if_multiple_authors=True):
 def _process_lc_coll(lcc, post_download_process_func):
     if post_download_process_func is None:
         return lcc
-    return lk.LightCurveCollection([post_download_process_func(lc) for lc in lcc])
+    lcc_processed = [post_download_process_func(lc) for lc in lcc]
+    lcc_processed = [lc for lc in lcc_processed if lc is not None]
+    return lk.LightCurveCollection(lcc_processed)
 
 
 # To be used as a `post_download_process_func` in `download_lightcurves_by_cadence_type()`
