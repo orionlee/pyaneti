@@ -227,6 +227,7 @@ for i,planet in enumerate(plabels[:nplanets]):
     if is_single_transit:
         # Initialize a column in the DataFrame for transit durations
         df[f'tr_dur{planet}'] = np.nan  # Set default values to NaN
+        units.append(['h'])
 
         # Initialize arrays to store z_vec
         z_vec = [None] * len(df)  # Initialize a list for z vectors
@@ -267,12 +268,14 @@ for i,planet in enumerate(plabels[:nplanets]):
 
         # Store the velocity in the DataFrame
         df[f'vpl{planet}'] = vpl_vec
+        units.append(['[TODO: velocity unit]'])
 
         # Now estimate planetary orbital period assuming the orbit is circular using Eq. 2 from Osborn et al., 2016
         P_circ_vec = 8. * np.pi**2 * G_cgs * irho / 3. / vpl_vec**3
 
         # Convert P_circ_vec to days and store in DataFrame
         df[f'P_circ{planet}'] = P_circ_vec / 24. / 3600.
+        units.append(['d'])
 
 if any(fit_tr) == True:
     #Parameters independent of the number of planets
