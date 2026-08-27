@@ -1632,12 +1632,8 @@ def create_input_fit(
             return n_cad, cadence_in_min
 
         num_bands = len(lc_or_lc_by_band)
-        if num_bands <= 1:
-            # the default value of single band. see:
-            # https://github.com/oscaribv/pyaneti/blob/ff570e7f92120ee4ef36683105fa709871382e50/src/default.py#L180
-            map["bands"] = [""]
-        else:
-            map["bands"] = list(lc_or_lc_by_band.keys())
+        # 2026-06-26: list the band explicitly even for single band case, to be compatible with Pyaneti 2
+        map["bands"] = list(lc_or_lc_by_band.keys())
 
         cad_n_cad_in_min_pairs = [calc_cadence(lc) for lc in lc_or_lc_by_band.values()]
 
