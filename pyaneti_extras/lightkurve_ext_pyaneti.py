@@ -850,7 +850,33 @@ def bin_flux(lc, columns=["flux", "flux_err"], **kwargs):
     return lc_subset.bin(**kwargs)
 
 
-#
+def select_flux(lc, flux_cols):
+    """Return a Lightcurve object with the named column as the flux column.
+
+    flux_cols: either a column name (string), or a list of prioritized column names
+    such that the first one that the lightcurve contains will be used.
+    """
+
+    def _to_lc_with_1flux(lc, flux_1col):
+        flux_1col = flux_1col.lower()
+        if "flux" == flux_1col:
+            return lc
+        elif flux_1col in lc.colnames:
+            return lc.select_flux(flux_1col)
+        else:
+            return None
+
+    if isinstance(flux_cols, str):
+        flux_cols = [flux_cols]
+
+    for flux_1col in flux_cols:
+        res = _to_lc_with_1flux(lc, flux_1col)
+        if res is not None:
+            return res
+    raise ValueError(f"'column {flux_cols}' not found")
+
+    
+ #
 # Helpers to deal with Pyaneti modeling, e.g.,
 # create initial priors, assembling input.py, etc.
 #
