@@ -875,8 +875,13 @@ def select_flux(lc, flux_cols):
             return res
     raise ValueError(f"'column {flux_cols}' not found")
 
-    
- #
+
+# useful for specifying window length in lc.flatten()
+# e.g., band 'LC' is 30 min cadence by convention, so it has 2 points per hour
+BAND_TO_NUM_PTS_PER_H = {'LC': 2, 'LC10m': 6, 'LC200s': 18, 'SC': 30}
+ 
+
+#
 # Helpers to deal with Pyaneti modeling, e.g.,
 # create initial priors, assembling input.py, etc.
 #
