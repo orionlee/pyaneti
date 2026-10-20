@@ -319,6 +319,7 @@ def download_lightcurves_by_cadence_type(
     author_priority=["SPOC", "TESS-SPOC", "QLP"],
     post_download_process_func=None,
     download_dir=None,
+    download_kwargs=dict(),
     return_sr=False,
 ):
     """Download the lightcurves of the given TIC - sector combination.
@@ -360,7 +361,7 @@ def download_lightcurves_by_cadence_type(
                 )
             return False
 
-        lcc = sr_subset.download_all(download_dir=download_dir)
+        lcc = sr_subset.download_all(download_dir=download_dir, **download_kwargs)
         lcc = _process_lc_coll(lcc, post_download_process_func)
         lc = _stitch_lc_collection(lcc, warn_if_multiple_authors=True)
         lc_by_cadence_type[cadence_type_key] = lc
