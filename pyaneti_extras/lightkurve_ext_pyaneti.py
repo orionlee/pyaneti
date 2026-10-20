@@ -492,8 +492,13 @@ def _truncate_lc_to_around_transits(lc, transit_specs, include_start_stop=True):
     # QLP data sometimes has nan flux_err, which causes problems for Pyaneti
     nan_mask = np.isnan(lc.flux_err)
     if np.sometrue(nan_mask):
-        print(f"LC {lc.meta.get('LABEL', '')} S.{lc.meta.get('SECTOR', '')} has nan flux_err ({np.sum(nan_mask)} / {len(nan_mask)}) : fill with median")
-        lc.flux_err[nan_mask] = np.nanmedian(lc.flux_err)
+        dummy_flux_err = np.nanmedian(lc.flux_err)
+        dummy_type = "median"
+        if np.isnan(dummy_flux_err):
+            dummy_flux_err = 0.0005 * lc.flux_err.unit
+            dummy_type = "dummy 0.0005"
+        print(f"LC {lc.meta.get('LABEL', '')} S.{lc.meta.get('SECTOR', '')} has nan flux_err ({np.sum(nan_mask)} / {len(nan_mask)}) : fill with {dummy_type}")
+        lc.flux_err[nan_mask] = dummy_flux_err
     lc = lc.normalize()
 
     # a mask to include the transits and their surrounding (out of transit observations)
