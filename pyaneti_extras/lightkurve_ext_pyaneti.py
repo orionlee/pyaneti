@@ -1824,7 +1824,12 @@ def create_input_fit(
             # - its output  can be affected by various numpy printoptions settings
             # - requires numpy > 1.11 (not as important)
             value_str = "[" + ", ".join([str(v) for v in value]) + "]"
-        result = result.replace("{" + key + "}", value_str)
+
+        key_in_template = "{" + key + "}"  # the pattern in the template
+        if key_in_template in result:
+            result = result.replace(key_in_template, value_str)
+            if "nan" in value_str:
+                warnings.warn(f"Substitution for {key} has nan value: {value_str}.")
 
     if re.search(r"{[^}]+}", result):
         warnings.warn(
